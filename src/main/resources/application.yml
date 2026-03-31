@@ -1,0 +1,11 @@
+server:
+  port: 8080
+
+app:
+  strava:
+    client-id: ${STRAVA_CLIENT_ID:replace-me}
+    client-secret: ${STRAVA_CLIENT_SECRET:replace-me}
+    redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:8080/auth/strava/callback}
+    scopes:
+      - read
+      - activity:read_all
