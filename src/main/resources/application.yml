@@ -3,9 +3,19 @@ server:
 
 app:
   strava:
-    client-id: ${STRAVA_CLIENT_ID:replace-me}
-    client-secret: ${STRAVA_CLIENT_SECRET:replace-me}
-    redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:8080/auth/strava/callback}
+    client-id: ${STRAVA_CLIENT_ID}
+    client-secret: ${STRAVA_CLIENT_SECRET}
+    redirect-uri: ${STRAVA_REDIRECT_URI}
     scopes:
       - read
       - activity:read_all
+  fitbit:
+    enabled: ${FITBIT_ENABLED:true}
+    client-id: ${FITBIT_CLIENT_ID:}
+    client-secret: ${FITBIT_CLIENT_SECRET:}
+    redirect-uri: ${FITBIT_REDIRECT_URI:}
+    scopes:
+      - activity
+      - heartrate
+      - location
+      - profile
