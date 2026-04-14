@@ -56,9 +56,7 @@ public class StravaProviderConnector implements ProviderConnector {
         }
 
         StravaTokenResponseDto tokenResponse = stravaApiClient.refreshAccessToken(connection.refreshToken());
-        return new ProviderConnection(
-                providerId(),
-                connection.athlete(),
+        return connection.withTokens(
                 tokenResponse.accessToken(),
                 tokenResponse.refreshToken(),
                 Instant.ofEpochSecond(tokenResponse.expiresAt())

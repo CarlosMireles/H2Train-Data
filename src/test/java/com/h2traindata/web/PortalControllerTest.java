@@ -32,6 +32,11 @@ class PortalControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("H2Train Data")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Fitbit")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Strava")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/h2train-logo.png")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/h2train-logo.png")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/portal.css")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/portal.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Automatic sync")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 5 hours")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 7 days")));
     }
 }

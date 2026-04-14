@@ -33,8 +33,10 @@ public class SyncProviderEventsUseCase {
 
         ProviderConnector connector = providerRegistry.connector(providerId);
         ProviderConnection activeConnection = refreshIfNeeded(connection, connector);
-        EventBatch batch = providerRegistry.collector(providerId, eventType).collect(activeConnection, cursor);
+        SyncCursor effectiveCursor = cursor != null ? cursor : activeConnection.lastSyncCursor();
+        EventBatch batch = providerRegistry.collector(providerId, eventType).collect(activeConnection, effectiveCursor);
         eventSink.write(batch);
+        connectionRepository.save(activeConnection.withSuccessfulSync(batch.nextCursor(), Instant.now()));
         return batch;
     }
 

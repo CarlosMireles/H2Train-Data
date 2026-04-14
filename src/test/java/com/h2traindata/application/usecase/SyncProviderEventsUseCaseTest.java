@@ -1,6 +1,7 @@
 package com.h2traindata.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import com.h2traindata.domain.EventBatch;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
+import com.h2traindata.domain.SyncCursor;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -68,5 +70,48 @@ class SyncProviderEventsUseCaseTest {
 
         assertEquals(1, result.events().size());
         verify(eventSink).write(batch);
+        verify(connectionRepository).save(argThat(savedConnection ->
+                savedConnection.lastSyncedAt() != null && savedConnection.lastSyncCursor() == null
+        ));
+    }
+
+    @Test
+    void reusesStoredCursorWhenNoCursorIsProvided() {
+        when(connector.providerId()).thenReturn("strava");
+        when(collector.providerId()).thenReturn("strava");
+        when(collector.eventType()).thenReturn(EventType.ACTIVITY);
+
+        ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
+        SyncProviderEventsUseCase useCase =
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, eventSink);
+
+        ProviderConnection connection = new ProviderConnection(
+                "strava",
+                new AthleteProfile("7", "runner"),
+                "access-token",
+                "refresh-token",
+                Instant.now().plusSeconds(300),
+                null,
+                new SyncCursor("1700000000"),
+                Instant.parse("2026-04-01T09:00:00Z")
+        );
+        EventBatch batch = new EventBatch(
+                "strava",
+                "7",
+                EventType.ACTIVITY,
+                List.of(),
+                new SyncCursor("1700003600")
+        );
+
+        when(connectionRepository.findByProviderAndAthlete("strava", "7")).thenReturn(Optional.of(connection));
+        when(collector.collect(connection, new SyncCursor("1700000000"))).thenReturn(batch);
+
+        useCase.execute("strava", "7", EventType.ACTIVITY, null);
+
+        verify(connectionRepository).save(argThat(savedConnection ->
+                savedConnection.lastSyncCursor() != null
+                        && "1700003600".equals(savedConnection.lastSyncCursor().value())
+                        && savedConnection.lastSyncedAt() != null
+        ));
     }
 }

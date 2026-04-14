@@ -58,9 +58,7 @@ public class FitbitProviderConnector implements ProviderConnector {
         }
 
         FitbitTokenResponseDto tokenResponse = fitbitApiClient.refreshAccessToken(connection.refreshToken());
-        return new ProviderConnection(
-                providerId(),
-                connection.athlete(),
+        return connection.withTokens(
                 tokenResponse.accessToken(),
                 tokenResponse.refreshToken(),
                 Instant.now().plusSeconds(tokenResponse.expiresIn())
