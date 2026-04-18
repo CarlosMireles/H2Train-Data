@@ -2,6 +2,14 @@ server:
   port: 8080
 
 app:
+  http:
+    connect-timeout: ${PROVIDER_HTTP_CONNECT_TIMEOUT:5s}
+    read-timeout: ${PROVIDER_HTTP_READ_TIMEOUT:30s}
+  sync:
+    poll-interval-ms: ${SYNC_POLL_INTERVAL_MS:60000}
+    connection-parallelism: ${SYNC_CONNECTION_PARALLELISM:4}
+    activity-parallelism: ${SYNC_ACTIVITY_PARALLELISM:2}
+    metrics-parallelism: ${SYNC_METRICS_PARALLELISM:2}
   strava:
     client-id: ${STRAVA_CLIENT_ID}
     client-secret: ${STRAVA_CLIENT_SECRET}
@@ -9,13 +17,27 @@ app:
     scopes:
       - read
       - activity:read_all
+      - profile:read_all
   fitbit:
     enabled: ${FITBIT_ENABLED:true}
     client-id: ${FITBIT_CLIENT_ID:}
     client-secret: ${FITBIT_CLIENT_SECRET:}
     redirect-uri: ${FITBIT_REDIRECT_URI:}
+    initial-activity-fetch-limit: ${FITBIT_INITIAL_ACTIVITY_FETCH_LIMIT:10}
+    incremental-activity-fetch-limit: ${FITBIT_INCREMENTAL_ACTIVITY_FETCH_LIMIT:20}
     scopes:
       - activity
       - heartrate
       - location
       - profile
+      - weight
+      - nutrition
+      - settings
+      - social
+      - sleep
+      - cardio_fitness
+      - electrocardiogram
+      - oxygen_saturation
+      - respiratory_rate
+      - temperature
+      - irregular_rhythm_notifications

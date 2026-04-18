@@ -18,7 +18,10 @@ import org.mockito.Mockito;
 class StravaActivityCollectorTest {
 
     private final StravaApiClient stravaApiClient = Mockito.mock(StravaApiClient.class);
-    private final StravaActivityCollector collector = new StravaActivityCollector(stravaApiClient);
+    private final StravaActivityCollector collector = new StravaActivityCollector(
+            stravaApiClient,
+            command -> command.run()
+    );
 
     @Test
     void mapsDetailedActivitiesToRichProviderEvents() {

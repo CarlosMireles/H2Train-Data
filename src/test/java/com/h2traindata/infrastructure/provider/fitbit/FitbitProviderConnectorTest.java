@@ -1,6 +1,7 @@
 package com.h2traindata.infrastructure.provider.fitbit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,8 @@ import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
 import com.h2traindata.infrastructure.provider.fitbit.dto.FitbitProfileDto;
 import com.h2traindata.infrastructure.provider.fitbit.dto.FitbitTokenResponseDto;
 import com.h2traindata.infrastructure.provider.fitbit.dto.FitbitUserDto;
+import java.net.URI;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -38,6 +41,20 @@ class FitbitProviderConnectorTest {
         assertEquals("fitbit-runner", connection.athlete().username());
         assertEquals("fitbit-access-token", connection.accessToken());
         assertTrue(connection.expiresAt().isAfter(java.time.Instant.now()));
+    }
+
+    @Test
+    void authorizationUriNormalizesLegacyBodyScopeToWeight() {
+        FitbitProperties properties = fitbitProperties();
+        properties.setScopes(List.of("activity", "body", "profile", "weight"));
+
+        URI authorizationUri = new FitbitProviderConnector(properties, fitbitApiClient).buildAuthorizationUri();
+        String uri = authorizationUri.toString();
+
+        assertTrue(uri.contains("activity"));
+        assertTrue(uri.contains("weight"));
+        assertTrue(uri.contains("profile"));
+        assertFalse(uri.contains("body"));
     }
 
     private FitbitProperties fitbitProperties() {

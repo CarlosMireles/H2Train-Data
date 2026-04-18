@@ -40,7 +40,7 @@ public class PortalPageRenderer {
                             <h1>H2Train Data</h1>
                             <p class="hero-copy">
                                 Connect your sports providers, keep their consent status visible, and control how often
-                                H2Train pulls new activity data after the initial authorization.
+                                H2Train pulls new activity and user metric data after the initial authorization.
                             </p>
                         </section>
 

@@ -1,5 +1,7 @@
 package com.h2traindata;
 
+import com.h2traindata.infrastructure.config.ProviderHttpClientProperties;
+import com.h2traindata.infrastructure.config.SyncProperties;
 import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
 import com.h2traindata.infrastructure.provider.strava.config.StravaProperties;
 import org.springframework.boot.SpringApplication;
@@ -9,7 +11,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties({StravaProperties.class, FitbitProperties.class})
+@EnableConfigurationProperties({
+        StravaProperties.class,
+        FitbitProperties.class,
+        SyncProperties.class,
+        ProviderHttpClientProperties.class
+})
 public class H2TrainDataApplication {
 
     public static void main(String[] args) {

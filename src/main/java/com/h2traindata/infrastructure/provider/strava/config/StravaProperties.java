@@ -20,7 +20,7 @@ public class StravaProperties {
     @NotBlank
     private String redirectUri;
 
-    private List<String> scopes = List.of("read", "activity:read_all");
+    private List<String> scopes = List.of("read", "activity:read_all", "profile:read_all");
 
     public String getClientId() {
         return clientId;

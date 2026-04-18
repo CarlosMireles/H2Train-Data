@@ -1,10 +1,12 @@
 package com.h2traindata.web;
 
+import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.application.usecase.GetProviderConnectionUseCase;
 import com.h2traindata.application.usecase.HandleAuthorizationCallbackUseCase;
-import com.h2traindata.application.usecase.StartAuthorizationUseCase;
 import com.h2traindata.application.usecase.SyncProviderEventsUseCase;
+import com.h2traindata.application.usecase.StartAuthorizationUseCase;
+import com.h2traindata.application.usecase.SyncAllProviderEventsUseCase;
 import com.h2traindata.application.usecase.UpdateSyncPreferencesUseCase;
 import com.h2traindata.domain.EventBatch;
 import com.h2traindata.domain.EventType;
@@ -15,6 +17,8 @@ import com.h2traindata.web.dto.SyncSettingsResponse;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import java.net.URI;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,10 +36,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequestMapping("/auth")
 public class AuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     private final StartAuthorizationUseCase startAuthorizationUseCase;
     private final GetProviderConnectionUseCase getProviderConnectionUseCase;
     private final HandleAuthorizationCallbackUseCase handleAuthorizationCallbackUseCase;
     private final SyncProviderEventsUseCase syncProviderEventsUseCase;
+    private final SyncAllProviderEventsUseCase syncAllProviderEventsUseCase;
     private final UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase;
     private final ProviderRegistry providerRegistry;
     private final SyncSettingsMapper syncSettingsMapper;
@@ -44,6 +51,7 @@ public class AuthController {
                           GetProviderConnectionUseCase getProviderConnectionUseCase,
                           HandleAuthorizationCallbackUseCase handleAuthorizationCallbackUseCase,
                           SyncProviderEventsUseCase syncProviderEventsUseCase,
+                          SyncAllProviderEventsUseCase syncAllProviderEventsUseCase,
                           UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase,
                           ProviderRegistry providerRegistry,
                           SyncSettingsMapper syncSettingsMapper) {
@@ -51,6 +59,7 @@ public class AuthController {
         this.getProviderConnectionUseCase = getProviderConnectionUseCase;
         this.handleAuthorizationCallbackUseCase = handleAuthorizationCallbackUseCase;
         this.syncProviderEventsUseCase = syncProviderEventsUseCase;
+        this.syncAllProviderEventsUseCase = syncAllProviderEventsUseCase;
         this.updateSyncPreferencesUseCase = updateSyncPreferencesUseCase;
         this.providerRegistry = providerRegistry;
         this.syncSettingsMapper = syncSettingsMapper;
@@ -67,7 +76,15 @@ public class AuthController {
     @GetMapping("/{provider}/callback")
     public ResponseEntity<Void> callback(@PathVariable String provider, @RequestParam("code") String code) {
         ProviderConnection connection = handleAuthorizationCallbackUseCase.execute(provider, code);
-        syncProviderEventsUseCase.execute(provider, connection.athlete().id(), EventType.ACTIVITY, null);
+        try {
+            syncAllProviderEventsUseCase.execute(provider, connection.athlete().id());
+        } catch (ProviderRateLimitException exception) {
+            log.warn("Initial sync deferred because provider={} athlete={} hit a rate limit during operation={} retryAfterSeconds={}",
+                    provider,
+                    connection.athlete().id(),
+                    exception.operation(),
+                    exception.retryAfterSeconds());
+        }
 
         URI redirectUri = UriComponentsBuilder.fromPath("/")
                 .queryParam("connectedProvider", provider)

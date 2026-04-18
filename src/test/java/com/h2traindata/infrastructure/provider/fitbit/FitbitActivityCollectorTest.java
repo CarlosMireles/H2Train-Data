@@ -9,6 +9,7 @@ import com.h2traindata.domain.EventBatch;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.infrastructure.provider.fitbit.client.FitbitApiClient;
+import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,7 +20,12 @@ import org.mockito.Mockito;
 class FitbitActivityCollectorTest {
 
     private final FitbitApiClient fitbitApiClient = Mockito.mock(FitbitApiClient.class);
-    private final FitbitActivityCollector collector = new FitbitActivityCollector(fitbitApiClient);
+    private final FitbitProperties fitbitProperties = new FitbitProperties();
+    private final FitbitActivityCollector collector = new FitbitActivityCollector(
+            fitbitApiClient,
+            fitbitProperties,
+            command -> command.run()
+    );
 
     @Test
     void mapsActivityLogsToNormalizedActivityEvents() {
@@ -30,7 +36,7 @@ class FitbitActivityCollectorTest {
                 "fitbit-refresh-token",
                 Instant.now().plusSeconds(600)
         );
-        when(fitbitApiClient.fetchActivityLogs("fitbit-access-token", null, LocalDate.now().toString(), 50)).thenReturn(List.of(Map.ofEntries(
+        when(fitbitApiClient.fetchActivityLogs("fitbit-access-token", null, LocalDate.now().toString(), 10)).thenReturn(List.of(Map.ofEntries(
                 Map.entry("logId", 19018673358L),
                 Map.entry("activityName", "Walk"),
                 Map.entry("activityTypeId", 90013),

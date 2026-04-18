@@ -5,9 +5,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.h2traindata.application.port.out.ConnectionRepository;
-import com.h2traindata.application.usecase.SyncProviderEventsUseCase;
+import com.h2traindata.application.usecase.SyncAllProviderEventsUseCase;
 import com.h2traindata.domain.AthleteProfile;
-import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.SyncInterval;
 import com.h2traindata.domain.SyncPreferences;
@@ -19,11 +18,16 @@ import org.mockito.Mockito;
 class ProviderSyncSchedulerTest {
 
     private final ConnectionRepository connectionRepository = Mockito.mock(ConnectionRepository.class);
-    private final SyncProviderEventsUseCase syncProviderEventsUseCase = Mockito.mock(SyncProviderEventsUseCase.class);
+    private final SyncAllProviderEventsUseCase syncAllProviderEventsUseCase = Mockito.mock(SyncAllProviderEventsUseCase.class);
+    private final java.util.concurrent.Executor directExecutor = command -> command.run();
 
     @Test
     void syncsOnlyConnectionsThatAreEnabledAndDue() {
-        ProviderSyncScheduler scheduler = new ProviderSyncScheduler(connectionRepository, syncProviderEventsUseCase);
+        ProviderSyncScheduler scheduler = new ProviderSyncScheduler(
+                connectionRepository,
+                syncAllProviderEventsUseCase,
+                directExecutor
+        );
         ProviderConnection dueDailyConnection = new ProviderConnection(
                 "strava",
                 new AthleteProfile("7", "runner"),
@@ -74,9 +78,9 @@ class ProviderSyncSchedulerTest {
 
         scheduler.syncDueConnections();
 
-        verify(syncProviderEventsUseCase).execute("strava", "7", EventType.ACTIVITY, null);
-        verify(syncProviderEventsUseCase).execute("fitbit", "10", EventType.ACTIVITY, null);
-        verify(syncProviderEventsUseCase, never()).execute("fitbit", "8", EventType.ACTIVITY, null);
-        verify(syncProviderEventsUseCase, never()).execute("fitbit", "9", EventType.ACTIVITY, null);
+        verify(syncAllProviderEventsUseCase).execute("strava", "7");
+        verify(syncAllProviderEventsUseCase).execute("fitbit", "10");
+        verify(syncAllProviderEventsUseCase, never()).execute("fitbit", "8");
+        verify(syncAllProviderEventsUseCase, never()).execute("fitbit", "9");
     }
 }

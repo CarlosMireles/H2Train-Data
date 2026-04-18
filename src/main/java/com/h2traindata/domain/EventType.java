@@ -1,5 +1,6 @@
 package com.h2traindata.domain;
 
 public enum EventType {
-    ACTIVITY
+    ACTIVITY,
+    USER_METRICS
 }

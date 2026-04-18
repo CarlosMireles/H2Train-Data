@@ -11,7 +11,7 @@ public class ProviderPortalDescriptorFactory {
             case "fitbit" -> new ProviderPortalDescriptor(
                     providerId,
                     "Fitbit",
-                    "Sync Fitbit daily activity data and configure whether H2Train should collect updates every 5 hours, every 24 hours, or every 7 days.",
+                    "Sync Fitbit activities and user metric snapshots, then configure whether H2Train should collect updates every 5 hours, every 24 hours, or every 7 days.",
                     "--provider-primary:#00b0b9;--provider-deep:#007e86;--provider-soft:rgba(0,176,185,0.14);",
                     """
                     <svg width="34" height="34" viewBox="0 0 34 34" aria-label="Fitbit logo" role="img">
@@ -29,7 +29,7 @@ public class ProviderPortalDescriptorFactory {
             case "strava" -> new ProviderPortalDescriptor(
                     providerId,
                     "Strava",
-                    "Import Strava activities, remember the authorization state, and control the automatic sync cadence from the portal.",
+                    "Import Strava activities and athlete metric snapshots, remember the authorization state, and control the automatic sync cadence from the portal.",
                     "--provider-primary:#fc4c02;--provider-deep:#c53c02;--provider-soft:rgba(252,76,2,0.14);",
                     """
                     <svg width="32" height="32" viewBox="0 0 32 32" aria-label="Strava logo" role="img">

@@ -10,6 +10,7 @@ import static com.h2traindata.infrastructure.provider.common.PayloadSupport.long
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.mapValue;
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.put;
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.stringValue;
+import static com.h2traindata.infrastructure.provider.common.ProviderRequestSupport.getOrDefault;
 
 import com.h2traindata.application.port.out.ProviderEventCollector;
 import com.h2traindata.domain.EventBatch;
@@ -21,12 +22,14 @@ import com.h2traindata.infrastructure.provider.strava.client.StravaApiClient;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
 
 @Component
 public class StravaActivityCollector implements ProviderEventCollector {
@@ -34,9 +37,12 @@ public class StravaActivityCollector implements ProviderEventCollector {
     private static final int PAGE_SIZE = 50;
 
     private final StravaApiClient stravaApiClient;
+    private final Executor activityCollectorExecutor;
 
-    public StravaActivityCollector(StravaApiClient stravaApiClient) {
+    public StravaActivityCollector(StravaApiClient stravaApiClient,
+                                   @Qualifier("activityCollectorExecutor") Executor activityCollectorExecutor) {
         this.stravaApiClient = stravaApiClient;
+        this.activityCollectorExecutor = activityCollectorExecutor;
     }
 
     @Override
@@ -58,7 +64,11 @@ public class StravaActivityCollector implements ProviderEventCollector {
         );
 
         List<ProviderEvent> events = activities.stream()
-                .map(activity -> toProviderEvent(connection, activity))
+                .map(activity -> CompletableFuture.supplyAsync(
+                        () -> toProviderEvent(connection, activity),
+                        activityCollectorExecutor
+                ))
+                .map(CompletableFuture::join)
                 .toList();
 
         return new EventBatch(
@@ -293,28 +303,15 @@ public class StravaActivityCollector implements ProviderEventCollector {
     }
 
     private Map<String, Object> fetchDetailedActivity(String accessToken, long activityId, Map<String, Object> fallbackSummary) {
-        try {
-            return stravaApiClient.fetchActivity(accessToken, activityId);
-        } catch (RestClientException ignored) {
-            return fallbackSummary;
-        }
+        return getOrDefault(() -> stravaApiClient.fetchActivity(accessToken, activityId), fallbackSummary);
     }
 
     private Map<String, Object> fetchStreams(String accessToken, long activityId) {
-        try {
-            Map<String, Object> streams = stravaApiClient.fetchActivityStreams(accessToken, activityId);
-            return streams != null ? streams : Map.of();
-        } catch (RestClientException ignored) {
-            return Map.of();
-        }
+        return getOrDefault(() -> stravaApiClient.fetchActivityStreams(accessToken, activityId), Map.of());
     }
 
     private List<Map<String, Object>> fetchZones(String accessToken, long activityId) {
-        try {
-            return stravaApiClient.fetchActivityZones(accessToken, activityId);
-        } catch (RestClientException ignored) {
-            return List.of();
-        }
+        return getOrDefault(() -> stravaApiClient.fetchActivityZones(accessToken, activityId), List.of());
     }
 
     private Double coordinate(Object latlngValue, int coordinateIndex) {

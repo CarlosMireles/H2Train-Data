@@ -10,6 +10,7 @@ import static com.h2traindata.infrastructure.provider.common.PayloadSupport.mapV
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.offsetDateTimeValue;
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.put;
 import static com.h2traindata.infrastructure.provider.common.PayloadSupport.stringValue;
+import static com.h2traindata.infrastructure.provider.common.ProviderRequestSupport.getOrDefault;
 
 import com.h2traindata.application.port.out.ProviderEventCollector;
 import com.h2traindata.domain.EventBatch;
@@ -18,29 +19,35 @@ import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
 import com.h2traindata.domain.SyncCursor;
 import com.h2traindata.infrastructure.provider.fitbit.client.FitbitApiClient;
+import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
 
 @Component
 @ConditionalOnProperty(prefix = "app.fitbit", name = "enabled", havingValue = "true")
 public class FitbitActivityCollector implements ProviderEventCollector {
 
-    private static final int INITIAL_FETCH_LIMIT = 50;
-    private static final int INCREMENTAL_FETCH_LIMIT = 100;
-
     private final FitbitApiClient fitbitApiClient;
+    private final FitbitProperties fitbitProperties;
+    private final Executor activityCollectorExecutor;
 
-    public FitbitActivityCollector(FitbitApiClient fitbitApiClient) {
+    public FitbitActivityCollector(FitbitApiClient fitbitApiClient,
+                                   FitbitProperties fitbitProperties,
+                                   @Qualifier("activityCollectorExecutor") Executor activityCollectorExecutor) {
         this.fitbitApiClient = fitbitApiClient;
+        this.fitbitProperties = fitbitProperties;
+        this.activityCollectorExecutor = activityCollectorExecutor;
     }
 
     @Override
@@ -60,11 +67,17 @@ public class FitbitActivityCollector implements ProviderEventCollector {
                 connection.accessToken(),
                 afterDate,
                 afterDate == null ? LocalDate.now().toString() : null,
-                afterDate == null ? INITIAL_FETCH_LIMIT : INCREMENTAL_FETCH_LIMIT
+                afterDate == null
+                        ? fitbitProperties.getInitialActivityFetchLimit()
+                        : fitbitProperties.getIncrementalActivityFetchLimit()
         );
 
         List<ProviderEvent> events = activities.stream()
-                .map(activity -> toProviderEvent(connection, activity))
+                .map(activity -> CompletableFuture.supplyAsync(
+                        () -> toProviderEvent(connection, activity),
+                        activityCollectorExecutor
+                ))
+                .map(CompletableFuture::join)
                 .toList();
 
         return new EventBatch(
@@ -193,20 +206,11 @@ public class FitbitActivityCollector implements ProviderEventCollector {
     }
 
     private String fetchActivityTcx(String accessToken, long logId) {
-        try {
-            return fitbitApiClient.fetchActivityTcx(accessToken, logId);
-        } catch (RestClientException ignored) {
-            return null;
-        }
+        return getOrDefault(() -> fitbitApiClient.fetchActivityTcx(accessToken, logId), null);
     }
 
     private Map<String, Object> fetchWorkoutSummary(String accessToken, long logId) {
-        try {
-            Map<String, Object> response = fitbitApiClient.fetchWorkoutSummary(accessToken, logId);
-            return response != null ? response : Map.of();
-        } catch (RestClientException ignored) {
-            return Map.of();
-        }
+        return getOrDefault(() -> fitbitApiClient.fetchWorkoutSummary(accessToken, logId), Map.of());
     }
 
     private Double resolvedDistanceMeters(Map<String, Object> activityLog, FitbitTcxParser.FitbitTcxData tcxData) {
