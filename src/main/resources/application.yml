@@ -2,6 +2,10 @@ server:
   port: 8080
 
 app:
+  datalake:
+    root-path: ${DATALAKE_ROOT_PATH:datalake}
+    subject-id-salt: ${DATALAKE_SUBJECT_ID_SALT:local-dev-subject-salt}
+    default-consent-version: ${DATALAKE_DEFAULT_CONSENT_VERSION:v1}
   http:
     connect-timeout: ${PROVIDER_HTTP_CONNECT_TIMEOUT:5s}
     read-timeout: ${PROVIDER_HTTP_READ_TIMEOUT:30s}

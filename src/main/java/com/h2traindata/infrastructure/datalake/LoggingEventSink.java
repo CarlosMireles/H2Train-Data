@@ -4,9 +4,7 @@ import com.h2traindata.application.port.out.EventSink;
 import com.h2traindata.domain.EventBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-@Component
 public class LoggingEventSink implements EventSink {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingEventSink.class);

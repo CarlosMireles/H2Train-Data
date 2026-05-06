@@ -17,6 +17,23 @@ This project is a Spring Boot backend foundation for a provider-driven fitness e
 
 The code is structured around clean ports and provider adapters so new sources such as Garmin or Polar can be added without changing the core use cases. Event collection is now modeled generically, so the system can grow beyond activities.
 
+## Datalake layout
+
+The application now persists collected events into a local filesystem datalake with a multi-user oriented layout.
+
+- `bronze/zone=restricted/provider=.../resource=.../ingest_date=...`
+- `silver/zone=curated/domain=activity_session|activity_trackpoint|activity_lap|health_snapshot|profile_snapshot`
+- `gold/zone=analytics/mart=subject_daily|cohort_daily|training_load|population_baselines`
+- `meta/manifests`, `meta/quality`, and `meta/dead_letter`
+
+Bronze records include:
+
+- a pseudonymous `subjectId` derived from provider account data plus a configured salt
+- an `ingestionRunId` and `batchId`
+- a `consentVersion` marker for downstream governance
+
+The current `subjectId` is stable per provider account, not yet cross-provider per human. A real internal user identity model is still needed to merge Strava and Fitbit accounts that belong to the same person.
+
 ## Normalized event model
 
 - `ACTIVITY`: incremental event built from Strava detailed activities or Fitbit activity logs plus enrichment (`streams`/`zones` in Strava, `TCX`/`workout-summary` in Fitbit).
@@ -42,6 +59,9 @@ The code is structured around clean ports and provider adapters so new sources s
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
 - `PROVIDER_HTTP_CONNECT_TIMEOUT` (optional, default `5s`)
 - `PROVIDER_HTTP_READ_TIMEOUT` (optional, default `30s`)
+- `DATALAKE_ROOT_PATH` (optional, default `datalake`)
+- `DATALAKE_SUBJECT_ID_SALT` (optional for local development, should be overridden outside dev)
+- `DATALAKE_DEFAULT_CONSENT_VERSION` (optional, default `v1`)
 
 `STRAVA_CLIENT_ID` must be your numeric Strava application ID, not the app name.
 `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava application settings.
@@ -64,6 +84,9 @@ $env:SYNC_ACTIVITY_PARALLELISM="2"
 $env:SYNC_METRICS_PARALLELISM="2"
 $env:PROVIDER_HTTP_CONNECT_TIMEOUT="5s"
 $env:PROVIDER_HTTP_READ_TIMEOUT="30s"
+$env:DATALAKE_ROOT_PATH="datalake"
+$env:DATALAKE_SUBJECT_ID_SALT="replace-this-in-non-dev"
+$env:DATALAKE_DEFAULT_CONSENT_VERSION="v1"
 mvn spring-boot:run
 ```
 
@@ -85,7 +108,7 @@ mvn spring-boot:run
 - `infrastructure/provider/strava`: Strava HTTP client, DTOs, connector, activity collector
 - `infrastructure/provider/fitbit`: Fitbit HTTP client, DTOs, connector, activity collector
 - `infrastructure/persistence`: in-memory connection repository
-- `infrastructure/datalake`: logging event sink
+- `infrastructure/datalake`: bronze filesystem sink, subject ID hashing, path resolver, and datalake bootstrap
 - `web/mapper`: HTTP mapper for sync settings DTOs
 - `web/portal`: portal rendering and provider card metadata
 - `static/portal.css` and `static/portal.js`: portal UI, local persistence, and sync controls

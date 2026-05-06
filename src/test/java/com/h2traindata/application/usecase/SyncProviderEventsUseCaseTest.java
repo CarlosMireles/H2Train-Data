@@ -12,6 +12,7 @@ import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.port.out.EventSink;
 import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.ProviderEventCollector;
+import com.h2traindata.application.port.out.SyncStateRepository;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.domain.AthleteProfile;
 import com.h2traindata.domain.EventBatch;
@@ -19,6 +20,7 @@ import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
 import com.h2traindata.domain.SyncCursor;
+import com.h2traindata.domain.SyncState;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +32,7 @@ class SyncProviderEventsUseCaseTest {
     private final ProviderConnector connector = Mockito.mock(ProviderConnector.class);
     private final ProviderEventCollector collector = Mockito.mock(ProviderEventCollector.class);
     private final ConnectionRepository connectionRepository = Mockito.mock(ConnectionRepository.class);
+    private final SyncStateRepository syncStateRepository = Mockito.mock(SyncStateRepository.class);
     private final EventSink eventSink = Mockito.mock(EventSink.class);
 
     @Test
@@ -40,7 +43,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, eventSink);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventSink);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -67,6 +70,8 @@ class SyncProviderEventsUseCaseTest {
         );
 
         when(connectionRepository.findByProviderAndAthlete("strava", "7")).thenReturn(Optional.of(connection));
+        when(syncStateRepository.findByProviderAndAthleteAndEventType("strava", "7", EventType.ACTIVITY))
+                .thenReturn(Optional.empty());
         when(collector.collect(connection, null)).thenReturn(batch);
 
         EventBatch result = useCase.execute("strava", "7", EventType.ACTIVITY, null);
@@ -86,7 +91,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, eventSink);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventSink);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -107,6 +112,8 @@ class SyncProviderEventsUseCaseTest {
         );
 
         when(connectionRepository.findByProviderAndAthlete("strava", "7")).thenReturn(Optional.of(connection));
+        when(syncStateRepository.findByProviderAndAthleteAndEventType("strava", "7", EventType.ACTIVITY))
+                .thenReturn(Optional.empty());
         when(collector.collect(connection, new SyncCursor("1700000000"))).thenReturn(batch);
 
         useCase.execute("strava", "7", EventType.ACTIVITY, null);
@@ -126,7 +133,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, eventSink);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventSink);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -147,7 +154,9 @@ class SyncProviderEventsUseCaseTest {
         );
 
         when(connectionRepository.findByProviderAndAthlete("strava", "7")).thenReturn(Optional.of(connection));
-        when(collector.collect(connection, new SyncCursor("1700000000"))).thenReturn(batch);
+        when(syncStateRepository.findByProviderAndAthleteAndEventType("strava", "7", EventType.USER_METRICS))
+                .thenReturn(Optional.empty());
+        when(collector.collect(connection, null)).thenReturn(batch);
 
         useCase.execute("strava", "7", EventType.USER_METRICS, null);
 
@@ -155,6 +164,9 @@ class SyncProviderEventsUseCaseTest {
                 savedConnection.lastSyncCursor() != null
                         && "1700000000".equals(savedConnection.lastSyncCursor().value())
                         && savedConnection.lastSyncedAt() != null
+        ));
+        verify(syncStateRepository).save(argThat(savedState ->
+                savedState.lastCursor() == null && savedState.lastSyncedAt() != null
         ));
     }
 
@@ -166,7 +178,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, eventSink);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventSink);
 
         ProviderConnection connection = new ProviderConnection(
                 "fitbit",
@@ -177,6 +189,8 @@ class SyncProviderEventsUseCaseTest {
         );
 
         when(connectionRepository.findByProviderAndAthlete("fitbit", "10")).thenReturn(Optional.of(connection));
+        when(syncStateRepository.findByProviderAndAthleteAndEventType("fitbit", "10", EventType.ACTIVITY))
+                .thenReturn(Optional.empty());
         when(collector.collect(connection, null)).thenThrow(new ProviderRateLimitException(
                 "fitbit",
                 "fetch Fitbit activity logs",
@@ -188,5 +202,54 @@ class SyncProviderEventsUseCaseTest {
 
         verify(eventSink, never()).write(org.mockito.ArgumentMatchers.any());
         verify(connectionRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(syncStateRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void prefersPerEventTypeSyncStateOverLegacyConnectionCursor() {
+        when(connector.providerId()).thenReturn("strava");
+        when(collector.providerId()).thenReturn("strava");
+        when(collector.eventType()).thenReturn(EventType.ACTIVITY);
+
+        ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
+        SyncProviderEventsUseCase useCase =
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventSink);
+
+        ProviderConnection connection = new ProviderConnection(
+                "strava",
+                new AthleteProfile("7", "runner"),
+                "access-token",
+                "refresh-token",
+                Instant.now().plusSeconds(300),
+                null,
+                new SyncCursor("legacy-cursor"),
+                Instant.parse("2026-04-01T09:00:00Z")
+        );
+        SyncState syncState = new SyncState(
+                "strava",
+                "7",
+                EventType.ACTIVITY,
+                new SyncCursor("state-cursor"),
+                Instant.parse("2026-04-02T09:00:00Z")
+        );
+        EventBatch batch = new EventBatch(
+                "strava",
+                "7",
+                EventType.ACTIVITY,
+                List.of(),
+                new SyncCursor("next-state-cursor")
+        );
+
+        when(connectionRepository.findByProviderAndAthlete("strava", "7")).thenReturn(Optional.of(connection));
+        when(syncStateRepository.findByProviderAndAthleteAndEventType("strava", "7", EventType.ACTIVITY))
+                .thenReturn(Optional.of(syncState));
+        when(collector.collect(connection, new SyncCursor("state-cursor"))).thenReturn(batch);
+
+        useCase.execute("strava", "7", EventType.ACTIVITY, null);
+
+        verify(connectionRepository).save(argThat(savedConnection ->
+                savedConnection.lastSyncCursor() != null
+                        && "next-state-cursor".equals(savedConnection.lastSyncCursor().value())
+        ));
     }
 }
