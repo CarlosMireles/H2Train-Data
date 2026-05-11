@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.port.out.ConnectionRepository;
+import com.h2traindata.application.port.out.EventPublisher;
 import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.ProviderEventCollector;
 import com.h2traindata.application.port.out.SyncStateRepository;
@@ -32,6 +33,7 @@ class SyncProviderEventsUseCaseTest {
     private final ProviderEventCollector collector = Mockito.mock(ProviderEventCollector.class);
     private final ConnectionRepository connectionRepository = Mockito.mock(ConnectionRepository.class);
     private final SyncStateRepository syncStateRepository = Mockito.mock(SyncStateRepository.class);
+    private final EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
 
     @Test
     void syncsStoredConnectionAndReturnsCollectedBatch() {
@@ -41,7 +43,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -76,6 +78,7 @@ class SyncProviderEventsUseCaseTest {
         EventBatch result = useCase.execute("strava", "7", EventType.ACTIVITY, null);
 
         assertEquals(1, result.events().size());
+        verify(eventPublisher).publishAll(batch.events());
         verify(connectionRepository).save(argThat(savedConnection ->
                 savedConnection.lastSyncedAt() != null && savedConnection.lastSyncCursor() == null
         ));
@@ -89,7 +92,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -131,7 +134,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -176,7 +179,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
 
         ProviderConnection connection = new ProviderConnection(
                 "fitbit",
@@ -200,6 +203,7 @@ class SyncProviderEventsUseCaseTest {
 
         verify(connectionRepository, never()).save(org.mockito.ArgumentMatchers.any());
         verify(syncStateRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(eventPublisher, never()).publishAll(org.mockito.ArgumentMatchers.anyList());
     }
 
     @Test
@@ -210,7 +214,7 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository);
+                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",

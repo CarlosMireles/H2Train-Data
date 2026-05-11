@@ -2,8 +2,9 @@ package com.h2traindata.domain;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.h2traindata.infrastructure.provider.common.PayloadSupport;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,17 +69,17 @@ public record ProviderEvent(
     }
 
     private static String resolveAthleteId(String athleteId, Map<String, Object> eventFields) {
-        String fromPayload = PayloadSupport.stringValue(rawBaseField(eventFields, "athleteId", "id"));
+        String fromPayload = stringValue(rawBaseField(eventFields, "athleteId", "id"));
         return fromPayload != null ? fromPayload : athleteId;
     }
 
     private static Instant resolveTs(Instant occurredAt, Map<String, Object> eventFields) {
-        Instant fromPayload = PayloadSupport.instantValue(rawBaseField(eventFields, "timestamp", "ts"));
+        Instant fromPayload = instantValue(rawBaseField(eventFields, "timestamp", "ts"));
         return fromPayload != null ? fromPayload : occurredAt;
     }
 
     private static String resolveSourceSystem(String providerId, Map<String, Object> eventFields) {
-        String fromPayload = PayloadSupport.stringValue(rawBaseField(eventFields, "sourceSystem", "ss"));
+        String fromPayload = stringValue(rawBaseField(eventFields, "sourceSystem", "ss"));
         return fromPayload != null ? fromPayload : providerId;
     }
 
@@ -108,6 +109,36 @@ public record ProviderEvent(
             }
         }
         return null;
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String string = String.valueOf(value).trim();
+        return string.isEmpty() ? null : string;
+    }
+
+    private static Instant instantValue(Object value) {
+        if (value instanceof Instant instant) {
+            return instant;
+        }
+        if (value instanceof Number number) {
+            return Instant.ofEpochSecond(number.longValue());
+        }
+        String string = stringValue(value);
+        if (string == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(string);
+        } catch (DateTimeParseException ignored) {
+            try {
+                return OffsetDateTime.parse(string).toInstant();
+            } catch (DateTimeParseException ignoredAgain) {
+                return null;
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

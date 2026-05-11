@@ -2,6 +2,7 @@ package com.h2traindata.application.usecase;
 
 import com.h2traindata.application.exception.ConnectionNotFoundException;
 import com.h2traindata.application.port.out.ConnectionRepository;
+import com.h2traindata.application.port.out.EventPublisher;
 import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.SyncStateRepository;
 import com.h2traindata.application.service.ProviderRegistry;
@@ -19,13 +20,16 @@ public class SyncProviderEventsUseCase {
     private final ProviderRegistry providerRegistry;
     private final ConnectionRepository connectionRepository;
     private final SyncStateRepository syncStateRepository;
+    private final EventPublisher eventPublisher;
 
     public SyncProviderEventsUseCase(ProviderRegistry providerRegistry,
                                      ConnectionRepository connectionRepository,
-                                     SyncStateRepository syncStateRepository) {
+                                     SyncStateRepository syncStateRepository,
+                                     EventPublisher eventPublisher) {
         this.providerRegistry = providerRegistry;
         this.connectionRepository = connectionRepository;
         this.syncStateRepository = syncStateRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public EventBatch execute(String providerId, String athleteId, EventType eventType, SyncCursor cursor) {
@@ -38,6 +42,7 @@ public class SyncProviderEventsUseCase {
                 .orElseGet(() -> legacySyncState(activeConnection, eventType));
         SyncCursor effectiveCursor = cursor != null ? cursor : syncState.lastCursor();
         EventBatch batch = providerRegistry.collector(providerId, eventType).collect(activeConnection, effectiveCursor);
+        eventPublisher.publishAll(batch.events());
         Instant syncedAt = Instant.now();
         SyncState updatedSyncState = syncState.withSuccessfulSync(batch.nextCursor(), syncedAt);
         syncStateRepository.save(updatedSyncState);

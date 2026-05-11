@@ -4,10 +4,11 @@ This repository is now organized as a Maven multi-module project with a clear sp
 
 ## Modules
 
+- `h2train-events`: shared event contracts used by producers and future consumers
 - `h2train-daemon`: provider integration, OAuth exchange, sync scheduling, event collection, normalization, and sync state management
 - `h2train-portal`: Spring Boot web application, portal UI, user-facing controllers, and static assets
 
-The portal depends on the daemon module and exposes the current end-to-end experience in a single runnable application while keeping both components physically separated in the repository.
+The daemon depends on the event contracts module. The portal depends on the daemon module and exposes the current end-to-end experience in a single runnable application while keeping components physically separated in the repository.
 
 ## Current scope
 
@@ -20,6 +21,7 @@ The portal depends on the daemon module and exposes the current end-to-end exper
 - Let the user choose a sync interval of every 5 hours, every 24 hours, or every 7 days
 - Sync provider events through event collectors
 - Collect provider events using a shared ontology grouped as `USER_STATE`, `ACTIVITY`, `PHYSIOLOGICAL`, `BODY_COMPOSITION`, and `HEALTH`
+- Publish collected events through an `EventPublisher` port, currently backed by a logging adapter
 - Poll due connections on a scheduler and reuse the stored sync cursor
 - Stop after event collection, returning batches to the caller and updating sync state
 
@@ -100,9 +102,10 @@ mvn -pl h2train-portal -am spring-boot:run
 
 ## Module layout
 
+- `h2train-events/src/main/java/com/h2traindata/domain`: shared event contracts such as `BaseEvent`, `EventType`, and `ProviderEvent`
 - `h2train-daemon/src/main/java/com/h2traindata/application`: use cases, ports, and daemon orchestration
-- `h2train-daemon/src/main/java/com/h2traindata/domain`: shared domain model
-- `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, persistence, and daemon configuration
+- `h2train-daemon/src/main/java/com/h2traindata/domain`: daemon domain model such as connections, cursors, sync state, and batches
+- `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, event publishing adapters, persistence, and daemon configuration
 - `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
 - `h2train-portal/src/main/resources/static`: portal UI assets
 
@@ -112,6 +115,7 @@ mvn -pl h2train-portal -am spring-boot:run
 
 ## Structure at a glance
 
+- `h2train-events` owns the event model shared across modules
 - `h2train-daemon` owns sync logic and provider integrations
 - `h2train-portal` owns the browser entrypoint and user-facing web endpoints
 - the portal module wires both pieces together through a dependency on the daemon module
