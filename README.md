@@ -1,6 +1,13 @@
-# Strava TFT
+# H2Train
 
-This project is a Spring Boot backend foundation for a provider-driven fitness event ingestion portal.
+This repository is now organized as a Maven multi-module project with a clear split between the user-facing portal and the synchronization daemon.
+
+## Modules
+
+- `h2train-daemon`: provider integration, OAuth exchange, sync scheduling, event collection, normalization, and sync state management
+- `h2train-portal`: Spring Boot web application, portal UI, user-facing controllers, and static assets
+
+The portal depends on the daemon module and exposes the current end-to-end experience in a single runnable application while keeping both components physically separated in the repository.
 
 ## Current scope
 
@@ -8,42 +15,39 @@ This project is a Spring Boot backend foundation for a provider-driven fitness e
 - Receive the OAuth callback code and redirect the browser back to the portal
 - Exchange the code for provider tokens
 - Store the provider connection behind a repository port
+- Link several provider connections to the same internal H2Train user account
 - Remember whether automatic sync is enabled for each connected athlete
 - Let the user choose a sync interval of every 5 hours, every 24 hours, or every 7 days
 - Sync provider events through event collectors
-- Collect two normalized event types: `ACTIVITY` and `USER_METRICS`
+- Collect provider events using a shared ontology grouped as `USER_STATE`, `ACTIVITY`, `PHYSIOLOGICAL`, `BODY_COMPOSITION`, and `HEALTH`
 - Poll due connections on a scheduler and reuse the stored sync cursor
-- Send those events to a pluggable event sink for the datalake
+- Stop after event collection, returning batches to the caller and updating sync state
 
 The code is structured around clean ports and provider adapters so new sources such as Garmin or Polar can be added without changing the core use cases. Event collection is now modeled generically, so the system can grow beyond activities.
 
-## Datalake layout
+## Internal account linking
 
-The application now persists collected events into a local filesystem datalake with a multi-user oriented layout.
-
-- `bronze/zone=restricted/provider=.../resource=.../ingest_date=...`
-- `silver/zone=curated/domain=activity_session|activity_trackpoint|activity_lap|health_snapshot|profile_snapshot`
-- `gold/zone=analytics/mart=subject_daily|cohort_daily|training_load|population_baselines`
-- `meta/manifests`, `meta/quality`, and `meta/dead_letter`
-
-Bronze records include:
-
-- a pseudonymous `subjectId` derived from provider account data plus a configured salt
-- an `ingestionRunId` and `batchId`
-- a `consentVersion` marker for downstream governance
-
-The current `subjectId` is stable per provider account, not yet cross-provider per human. A real internal user identity model is still needed to merge Strava and Fitbit accounts that belong to the same person.
+- Every `ProviderConnection` now carries an internal `userId`
+- The first OAuth authorization creates that internal account automatically
+- Subsequent provider authorizations can reuse the same `userId` and link multiple providers to the same person
+- Event payloads keep their provider-native `athleteId`; the cross-provider relationship lives in the connection model through `userId`
 
 ## Normalized event model
 
-- `ACTIVITY`: incremental event built from Strava detailed activities or Fitbit activity logs plus enrichment (`streams`/`zones` in Strava, `TCX`/`workout-summary` in Fitbit).
-- `USER_METRICS`: snapshot event built from Strava athlete profile plus athlete stats, and from Fitbit profile plus lifetime stats.
-- Each `ProviderEvent` keeps three layers:
-  - `normalizedPayload` for cross-provider fields
-  - `providerSpecificPayload` for source-only fields and nested totals
-  - `rawPayload` for the untouched provider responses
+- `USER_STATE`: snapshot events such as `UserProfile` and `UserGoals`
+- `ACTIVITY`: incremental `Workout` events plus snapshot `ActivitySummary` events when the provider exposes them
+- `PHYSIOLOGICAL`: daily events such as `Steps`, `Distance`, `CaloriesBurned`, and `HeartRate`
+- `BODY_COMPOSITION`: snapshot events such as `BodyComposition` and `Nutrition`
+- `HEALTH`: snapshot events such as `Sleep`, `BloodGlucose`, `Electrocardiogram`, and `AnomalyDetected`
+- `BaseEvent`: shared base event with `timestamp`, `sourceSystem`, and `athleteId`
+- Every normalized event exposes those base fields directly in the event root:
+  - `timestamp`: event timestamp
+  - `sourceSystem`: source system (`strava` or `fitbit`)
+  - `athleteId`: athlete identifier used by this application
+- Event-specific fields are flattened directly into each `ProviderEvent`; there is no `normalizedPayload` wrapper
+- `UserProfile` is restricted to `weight`, `height`, `gender`, and `timezone` on top of `BaseEvent`
 
-`USER_METRICS` is modeled as a snapshot without a sync cursor, so it does not overwrite the incremental activity cursor.
+Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the incremental activity cursor.
 
 ## Required environment variables
 
@@ -59,15 +63,12 @@ The current `subjectId` is stable per provider account, not yet cross-provider p
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
 - `PROVIDER_HTTP_CONNECT_TIMEOUT` (optional, default `5s`)
 - `PROVIDER_HTTP_READ_TIMEOUT` (optional, default `30s`)
-- `DATALAKE_ROOT_PATH` (optional, default `datalake`)
-- `DATALAKE_SUBJECT_ID_SALT` (optional for local development, should be overridden outside dev)
-- `DATALAKE_DEFAULT_CONSENT_VERSION` (optional, default `v1`)
 
 `STRAVA_CLIENT_ID` must be your numeric Strava application ID, not the app name.
 `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava application settings.
 The backend now fails at startup if `STRAVA_CLIENT_ID` or `STRAVA_CLIENT_SECRET` are missing.
 Set `FITBIT_ENABLED=true` to register the Fitbit provider. Fitbit remains disabled unless that flag is enabled.
-Strava user metric snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
+Strava user-state snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
 
 ## Run locally
 
@@ -84,10 +85,7 @@ $env:SYNC_ACTIVITY_PARALLELISM="2"
 $env:SYNC_METRICS_PARALLELISM="2"
 $env:PROVIDER_HTTP_CONNECT_TIMEOUT="5s"
 $env:PROVIDER_HTTP_READ_TIMEOUT="30s"
-$env:DATALAKE_ROOT_PATH="datalake"
-$env:DATALAKE_SUBJECT_ID_SALT="replace-this-in-non-dev"
-$env:DATALAKE_DEFAULT_CONSENT_VERSION="v1"
-mvn spring-boot:run
+mvn -pl h2train-portal -am spring-boot:run
 ```
 
 ## Main endpoints
@@ -100,18 +98,13 @@ mvn spring-boot:run
 - `PUT /auth/{provider}/athletes/{athleteId}/sync-settings`
 - `GET /auth/health`
 
-## Architecture
+## Module layout
 
-- `application/usecase`: start authorization, handle callback, sync provider events, read/update sync settings
-- `application/port/out`: provider connectors, event collectors, connection repository, event sink
-- `domain`: provider connection, athlete profile, event batch, event type, provider event, sync cursor, sync preferences
-- `infrastructure/provider/strava`: Strava HTTP client, DTOs, connector, activity collector
-- `infrastructure/provider/fitbit`: Fitbit HTTP client, DTOs, connector, activity collector
-- `infrastructure/persistence`: in-memory connection repository
-- `infrastructure/datalake`: bronze filesystem sink, subject ID hashing, path resolver, and datalake bootstrap
-- `web/mapper`: HTTP mapper for sync settings DTOs
-- `web/portal`: portal rendering and provider card metadata
-- `static/portal.css` and `static/portal.js`: portal UI, local persistence, and sync controls
+- `h2train-daemon/src/main/java/com/h2traindata/application`: use cases, ports, and daemon orchestration
+- `h2train-daemon/src/main/java/com/h2traindata/domain`: shared domain model
+- `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, persistence, and daemon configuration
+- `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
+- `h2train-portal/src/main/resources/static`: portal UI assets
 
 ## Notes
 
@@ -119,15 +112,12 @@ mvn spring-boot:run
 
 ## Structure at a glance
 
-- `web/AuthController` exposes the OAuth and sync settings endpoints
-- `web/PortalController` only delegates portal rendering
-- `web/portal/PortalPageRenderer` builds the landing page from provider descriptors
-- `application/usecase/*` contains the application orchestration and no provider HTTP details
-- `infrastructure/provider/*` contains the concrete provider adapters, clients, and DTOs
+- `h2train-daemon` owns sync logic and provider integrations
+- `h2train-portal` owns the browser entrypoint and user-facing web endpoints
+- the portal module wires both pieces together through a dependency on the daemon module
 
 ## Next steps
 
 - Implement new providers such as Garmin or Polar behind `ProviderConnector` and `ProviderEventCollector`
-- Replace `LoggingEventSink` with a real sink for S3, Azure Data Lake, GCS, or Kafka
 - Replace the in-memory repository with a database-backed `ConnectionRepository`
 - Persist sync settings and connection state beyond process restarts
