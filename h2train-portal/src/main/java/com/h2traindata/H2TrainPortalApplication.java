@@ -1,0 +1,25 @@
+package com.h2traindata;
+
+import com.h2traindata.infrastructure.config.ProviderHttpClientProperties;
+import com.h2traindata.infrastructure.config.SyncProperties;
+import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
+import com.h2traindata.infrastructure.provider.strava.config.StravaProperties;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@SpringBootApplication
+@EnableScheduling
+@EnableConfigurationProperties({
+        StravaProperties.class,
+        FitbitProperties.class,
+        SyncProperties.class,
+        ProviderHttpClientProperties.class
+})
+public class H2TrainPortalApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(H2TrainPortalApplication.class, args);
+    }
+}
