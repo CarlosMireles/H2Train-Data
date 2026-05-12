@@ -10,24 +10,24 @@
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>h2train-portal</artifactId>
-    <name>h2train-portal</name>
-    <description>User-facing portal module for H2Train</description>
+    <artifactId>h2train-bus-kafka</artifactId>
+    <name>h2train-bus-kafka</name>
+    <description>Kafka adapter for H2Train event publishing</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.h2traindata</groupId>
+            <artifactId>h2train-events</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.h2traindata</groupId>
             <artifactId>h2train-daemon</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.h2traindata</groupId>
-            <artifactId>h2train-bus-kafka</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -42,7 +42,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.h2traindata.H2TrainPortalApplication</mainClass>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

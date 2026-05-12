@@ -6,9 +6,10 @@ This repository is now organized as a Maven multi-module project with a clear sp
 
 - `h2train-events`: shared event contracts used by producers and future consumers
 - `h2train-daemon`: provider integration, OAuth exchange, sync scheduling, event collection, normalization, and sync state management
+- `h2train-bus-kafka`: Kafka adapter for the daemon `EventPublisher` port
 - `h2train-portal`: Spring Boot web application, portal UI, user-facing controllers, and static assets
 
-The daemon depends on the event contracts module. The portal depends on the daemon module and exposes the current end-to-end experience in a single runnable application while keeping components physically separated in the repository.
+The daemon depends on the event contracts module. The Kafka adapter depends on the daemon port and event contracts. The portal depends on the daemon and Kafka adapter modules, exposing the current end-to-end experience in a single runnable application while keeping components physically separated in the repository.
 
 ## Current scope
 
@@ -65,6 +66,10 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
 - `PROVIDER_HTTP_CONNECT_TIMEOUT` (optional, default `5s`)
 - `PROVIDER_HTTP_READ_TIMEOUT` (optional, default `30s`)
+- `APP_BUS_TYPE` (optional, default `logging`; use `kafka` to publish to Kafka)
+- `KAFKA_BOOTSTRAP_SERVERS` (optional, default `localhost:9092`)
+- `KAFKA_TOPIC` (optional, default `h2train.events.v1`)
+- `KAFKA_CLIENT_ID` (optional, default `h2train-daemon`)
 
 `STRAVA_CLIENT_ID` must be your numeric Strava application ID, not the app name.
 `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava application settings.
@@ -87,6 +92,17 @@ $env:SYNC_ACTIVITY_PARALLELISM="2"
 $env:SYNC_METRICS_PARALLELISM="2"
 $env:PROVIDER_HTTP_CONNECT_TIMEOUT="5s"
 $env:PROVIDER_HTTP_READ_TIMEOUT="30s"
+$env:APP_BUS_TYPE="logging"
+mvn -pl h2train-portal -am spring-boot:run
+```
+
+To publish collected events to Kafka instead of logging them:
+
+```powershell
+$env:APP_BUS_TYPE="kafka"
+$env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
+$env:KAFKA_TOPIC="h2train.events.v1"
+$env:KAFKA_CLIENT_ID="h2train-daemon"
 mvn -pl h2train-portal -am spring-boot:run
 ```
 
@@ -106,6 +122,7 @@ mvn -pl h2train-portal -am spring-boot:run
 - `h2train-daemon/src/main/java/com/h2traindata/application`: use cases, ports, and daemon orchestration
 - `h2train-daemon/src/main/java/com/h2traindata/domain`: daemon domain model such as connections, cursors, sync state, and batches
 - `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, event publishing adapters, persistence, and daemon configuration
+- `h2train-bus-kafka/src/main/java/com/h2traindata/infrastructure/bus/kafka`: Kafka event publisher adapter
 - `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
 - `h2train-portal/src/main/resources/static`: portal UI assets
 
@@ -117,6 +134,7 @@ mvn -pl h2train-portal -am spring-boot:run
 
 - `h2train-events` owns the event model shared across modules
 - `h2train-daemon` owns sync logic and provider integrations
+- `h2train-bus-kafka` owns Kafka-specific publishing
 - `h2train-portal` owns the browser entrypoint and user-facing web endpoints
 - the portal module wires both pieces together through a dependency on the daemon module
 

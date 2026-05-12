@@ -7,6 +7,7 @@ import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.SyncStateRepository;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.domain.EventBatch;
+import com.h2traindata.domain.EventPublication;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.SyncCursor;
@@ -42,7 +43,9 @@ public class SyncProviderEventsUseCase {
                 .orElseGet(() -> legacySyncState(activeConnection, eventType));
         SyncCursor effectiveCursor = cursor != null ? cursor : syncState.lastCursor();
         EventBatch batch = providerRegistry.collector(providerId, eventType).collect(activeConnection, effectiveCursor);
-        eventPublisher.publishAll(batch.events());
+        eventPublisher.publishAll(batch.events().stream()
+                .map(event -> new EventPublication(activeConnection.userId(), event))
+                .toList());
         Instant syncedAt = Instant.now();
         SyncState updatedSyncState = syncState.withSuccessfulSync(batch.nextCursor(), syncedAt);
         syncStateRepository.save(updatedSyncState);

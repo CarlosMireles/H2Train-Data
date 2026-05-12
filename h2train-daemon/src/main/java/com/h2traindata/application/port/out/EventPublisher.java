@@ -1,16 +1,16 @@
 package com.h2traindata.application.port.out;
 
-import com.h2traindata.domain.ProviderEvent;
+import com.h2traindata.domain.EventPublication;
 import java.util.List;
 
 public interface EventPublisher {
 
-    void publish(ProviderEvent event);
+    void publish(EventPublication publication);
 
-    default void publishAll(List<ProviderEvent> events) {
-        if (events == null || events.isEmpty()) {
+    default void publishAll(List<EventPublication> publications) {
+        if (publications == null || publications.isEmpty()) {
             return;
         }
-        events.forEach(this::publish);
+        publications.forEach(this::publish);
     }
 }

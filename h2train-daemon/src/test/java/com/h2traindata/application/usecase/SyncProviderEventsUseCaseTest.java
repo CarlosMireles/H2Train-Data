@@ -16,6 +16,7 @@ import com.h2traindata.application.port.out.SyncStateRepository;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.domain.AthleteProfile;
 import com.h2traindata.domain.EventBatch;
+import com.h2traindata.domain.EventPublication;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
@@ -51,12 +52,8 @@ class SyncProviderEventsUseCaseTest {
                 "access-token",
                 "refresh-token",
                 Instant.now().plusSeconds(300)
-        );
-        EventBatch batch = new EventBatch(
-                "strava",
-                "7",
-                EventType.ACTIVITY,
-                List.of(new ProviderEvent(
+        ).withUserId("internal-user-1");
+        ProviderEvent event = new ProviderEvent(
                 "strava",
                 "7",
                 EventType.ACTIVITY,
@@ -64,9 +61,14 @@ class SyncProviderEventsUseCaseTest {
                 "123",
                 Instant.parse("2026-04-03T10:15:30Z"),
                 java.util.Map.of("name", "Morning Ride"),
-                        java.util.Map.of("kudosCount", 3),
-                        java.util.Map.of("id", 123L)
-                )),
+                java.util.Map.of("kudosCount", 3),
+                java.util.Map.of("id", 123L)
+        );
+        EventBatch batch = new EventBatch(
+                "strava",
+                "7",
+                EventType.ACTIVITY,
+                List.of(event),
                 null
         );
 
@@ -78,7 +80,7 @@ class SyncProviderEventsUseCaseTest {
         EventBatch result = useCase.execute("strava", "7", EventType.ACTIVITY, null);
 
         assertEquals(1, result.events().size());
-        verify(eventPublisher).publishAll(batch.events());
+        verify(eventPublisher).publishAll(List.of(new EventPublication("internal-user-1", event)));
         verify(connectionRepository).save(argThat(savedConnection ->
                 savedConnection.lastSyncedAt() != null && savedConnection.lastSyncCursor() == null
         ));

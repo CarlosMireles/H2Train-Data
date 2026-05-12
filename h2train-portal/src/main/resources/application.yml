@@ -10,6 +10,12 @@ app:
     connection-parallelism: ${SYNC_CONNECTION_PARALLELISM:4}
     activity-parallelism: ${SYNC_ACTIVITY_PARALLELISM:2}
     metrics-parallelism: ${SYNC_METRICS_PARALLELISM:2}
+  bus:
+    type: ${APP_BUS_TYPE:logging}
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      topic: ${KAFKA_TOPIC:h2train.events.v1}
+      client-id: ${KAFKA_CLIENT_ID:h2train-daemon}
   strava:
     client-id: ${STRAVA_CLIENT_ID}
     client-secret: ${STRAVA_CLIENT_SECRET}
