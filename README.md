@@ -70,6 +70,11 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `KAFKA_BOOTSTRAP_SERVERS` (optional, default `localhost:9092`)
 - `KAFKA_TOPIC` (optional, default `h2train.events.v1`)
 - `KAFKA_CLIENT_ID` (optional, default `h2train-daemon`)
+- `KAFKA_TOPIC_PARTITIONS` (optional, default `3`)
+- `KAFKA_TOPIC_REPLICATION_FACTOR` (optional, default `1`)
+- `KAFKA_REQUEST_TIMEOUT` (optional, default `10s`)
+- `KAFKA_DELIVERY_TIMEOUT` (optional, default `20s`)
+- `KAFKA_MAX_BLOCK` (optional, default `5s`)
 
 `STRAVA_CLIENT_ID` must be your numeric Strava application ID, not the app name.
 `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava application settings.
@@ -99,11 +104,21 @@ mvn -pl h2train-portal -am spring-boot:run
 To publish collected events to Kafka instead of logging them:
 
 ```powershell
+docker compose up -d kafka
 $env:APP_BUS_TYPE="kafka"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
 $env:KAFKA_TOPIC="h2train.events.v1"
 $env:KAFKA_CLIENT_ID="h2train-daemon"
 mvn -pl h2train-portal -am spring-boot:run
+```
+
+The application creates the configured Kafka topic automatically when the Kafka bus is enabled. For local development, the topic uses 3 partitions and replication factor 1 by default.
+
+Useful Kafka checks:
+
+```powershell
+docker exec -it h2train-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec -it h2train-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic h2train.events.v1 --from-beginning
 ```
 
 ## Main endpoints

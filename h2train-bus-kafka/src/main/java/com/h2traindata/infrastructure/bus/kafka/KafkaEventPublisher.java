@@ -3,7 +3,6 @@ package com.h2traindata.infrastructure.bus.kafka;
 import com.h2traindata.application.port.out.EventPublisher;
 import com.h2traindata.domain.BusEventEnvelope;
 import com.h2traindata.domain.EventPublication;
-import java.util.concurrent.CompletionException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -28,7 +27,7 @@ public class KafkaEventPublisher implements EventPublisher {
         String key = messageKey(envelope);
         try {
             kafkaTemplate.send(properties.getTopic(), key, envelope).join();
-        } catch (CompletionException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("Failed to publish event to Kafka topic " + properties.getTopic(), exception);
         }
     }

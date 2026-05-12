@@ -16,6 +16,11 @@ app:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
       topic: ${KAFKA_TOPIC:h2train.events.v1}
       client-id: ${KAFKA_CLIENT_ID:h2train-daemon}
+      topic-partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+      topic-replication-factor: ${KAFKA_TOPIC_REPLICATION_FACTOR:1}
+      request-timeout: ${KAFKA_REQUEST_TIMEOUT:10s}
+      delivery-timeout: ${KAFKA_DELIVERY_TIMEOUT:20s}
+      max-block: ${KAFKA_MAX_BLOCK:5s}
   strava:
     client-id: ${STRAVA_CLIENT_ID}
     client-secret: ${STRAVA_CLIENT_SECRET}
