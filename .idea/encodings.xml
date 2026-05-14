@@ -3,6 +3,7 @@
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/h2train-bus-kafka/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/h2train-daemon/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/h2train-datalake/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/h2train-events/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/h2train-portal/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />

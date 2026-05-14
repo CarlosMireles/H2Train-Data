@@ -7,9 +7,10 @@ This repository is now organized as a Maven multi-module project with a clear sp
 - `h2train-events`: shared event contracts used by producers and future consumers
 - `h2train-daemon`: provider integration, OAuth exchange, sync scheduling, event collection, normalization, and sync state management
 - `h2train-bus-kafka`: Kafka adapter for the daemon `EventPublisher` port
+- `h2train-datalake`: bus event ingester that writes events to the local datalake as JSON Lines
 - `h2train-portal`: Spring Boot web application, portal UI, user-facing controllers, and static assets
 
-The daemon depends on the event contracts module. The Kafka adapter depends on the daemon port and event contracts. The portal depends on the daemon and Kafka adapter modules, exposing the current end-to-end experience in a single runnable application while keeping components physically separated in the repository.
+The daemon depends on the event contracts module. The Kafka adapter depends on the daemon port and event contracts. The datalake module keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code, with Kafka only as the current input adapter. The portal depends on the daemon and Kafka adapter modules, exposing the current end-to-end producer experience in a single runnable application while keeping components physically separated in the repository.
 
 ## Current scope
 
@@ -24,6 +25,7 @@ The daemon depends on the event contracts module. The Kafka adapter depends on t
 - Sync provider events through event collectors
 - Collect provider events using a shared ontology grouped as `USER_STATE`, `ACTIVITY`, `PHYSIOLOGICAL`, `BODY_COMPOSITION`, and `HEALTH`
 - Publish collected events through an `EventPublisher` port, currently backed by a logging adapter
+- Consume bus events through the datalake ingestion service and persist them to a simple local datalake
 - Poll due connections on a scheduler and reuse the stored sync cursor
 - Stop after event collection, returning batches to the caller and updating sync state
 
@@ -80,6 +82,11 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `KAFKA_REQUEST_TIMEOUT` (optional, default `10s`)
 - `KAFKA_DELIVERY_TIMEOUT` (optional, default `20s`)
 - `KAFKA_MAX_BLOCK` (optional, default `5s`)
+- `DATALAKE_ROOT_PATH` (optional, default `../datalake` when running `h2train-datalake`)
+- `APP_DATALAKE_BUS_TYPE` (optional, default `kafka`)
+- `DATALAKE_KAFKA_GROUP_ID` (optional, default `h2train-datalake`)
+- `DATALAKE_KAFKA_CLIENT_ID` (optional, default `h2train-datalake`)
+- `DATALAKE_KAFKA_AUTO_OFFSET_RESET` (optional, default `earliest`)
 
 `STRAVA_CLIENT_ID` must be your numeric Strava application ID, not the app name.
 `STRAVA_REDIRECT_URI` must match the callback URL configured in your Strava application settings.
@@ -148,6 +155,56 @@ docker exec -it h2train-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server 
 docker exec -it h2train-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic h2train.events.v1 --from-beginning
 ```
 
+## Datalake ingestion
+
+The datalake writer runs as a separate Spring Boot application. Its core ingestion service accepts generic bus messages and appends valid event envelopes unchanged to JSON Lines files. Kafka is the current input adapter.
+
+Run the producer portal with Kafka enabled:
+
+```powershell
+docker compose up -d kafka
+$env:APP_BUS_TYPE="kafka"
+$env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
+$env:KAFKA_TOPIC="h2train.events.v1"
+mvn -pl h2train-portal -am spring-boot:run
+```
+
+Run the datalake consumer in another terminal:
+
+```powershell
+$env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
+$env:KAFKA_TOPIC="h2train.events.v1"
+mvn -pl h2train-datalake -am spring-boot:run
+```
+
+The default datalake layout is:
+
+```text
+datalake/
+  events/
+    userId={internalUserId}/
+      provider={providerId}/
+        eventType={eventType}/
+          year={yyyy}/
+            month={MM}/
+              day={dd}/
+                events.jsonl
+  dead-letter/
+    year={yyyy}/
+      month={MM}/
+        day={dd}/
+          failed-events.jsonl
+  manifests/
+```
+
+Example event path:
+
+```text
+datalake/events/userId=a5994e0f-1fb0-4bb9-9fee-fc1f020b9405/provider=strava/eventType=ACTIVITY/year=2026/month=05/day=14/events.jsonl
+```
+
+The date partition is based on the normalized event timestamp. If an event cannot be parsed, the consumer writes the original payload plus error metadata to `datalake/dead-letter`.
+
 ## Main endpoints
 
 - `GET /`
@@ -165,6 +222,7 @@ docker exec -it h2train-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstr
 - `h2train-daemon/src/main/java/com/h2traindata/domain`: daemon domain model such as connections, cursors, sync state, and batches
 - `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, event publishing adapters, persistence, and daemon configuration
 - `h2train-bus-kafka/src/main/java/com/h2traindata/infrastructure/bus/kafka`: Kafka event publisher adapter
+- `h2train-datalake/src/main/java/com/h2traindata/datalake`: bus-agnostic ingestion service, Kafka input adapter, and datalake JSONL writer
 - `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
 - `h2train-portal/src/main/resources/static`: portal UI assets
 
@@ -177,11 +235,11 @@ docker exec -it h2train-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstr
 - `h2train-events` owns the event model shared across modules
 - `h2train-daemon` owns sync logic and provider integrations
 - `h2train-bus-kafka` owns Kafka-specific publishing
+- `h2train-datalake` owns bus event ingestion and local datalake writes
 - `h2train-portal` owns the browser entrypoint and user-facing web endpoints
 - the portal module wires both pieces together through a dependency on the daemon module
 
 ## Next steps
 
 - Implement new providers such as Garmin or Polar behind `ProviderConnector` and `ProviderEventCollector`
-- Replace the in-memory repository with a database-backed `ConnectionRepository`
-- Persist sync settings and connection state beyond process restarts
+- Build `H2TrainApp` on top of the datalake with a mount factory, datamarts, and a query API

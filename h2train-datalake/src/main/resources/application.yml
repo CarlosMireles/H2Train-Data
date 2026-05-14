@@ -1,0 +1,11 @@
+app:
+  datalake:
+    root-path: ${DATALAKE_ROOT_PATH:../datalake}
+    bus:
+      type: ${APP_DATALAKE_BUS_TYPE:kafka}
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      topic: ${KAFKA_TOPIC:h2train.events.v1}
+      group-id: ${DATALAKE_KAFKA_GROUP_ID:h2train-datalake}
+      client-id: ${DATALAKE_KAFKA_CLIENT_ID:h2train-datalake}
+      auto-offset-reset: ${DATALAKE_KAFKA_AUTO_OFFSET_RESET:earliest}

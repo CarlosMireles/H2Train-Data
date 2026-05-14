@@ -39,15 +39,7 @@ build/
 .DS_Store
 
 ### Datalake ###
-datalake/**
-!datalake/
-!datalake/bronze/
-!datalake/silver/
-!datalake/gold/
-!datalake/meta/
-!datalake/meta/manifests/
-!datalake/meta/dead_letter/
-!datalake/**/.gitkeep
+/datalake/
 
 ### Local application database ###
 data/**
