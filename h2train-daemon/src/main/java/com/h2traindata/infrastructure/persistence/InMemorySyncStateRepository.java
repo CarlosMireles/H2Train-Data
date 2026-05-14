@@ -6,9 +6,11 @@ import com.h2traindata.domain.SyncState;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@ConditionalOnProperty(prefix = "app.persistence", name = "type", havingValue = "memory")
 public class InMemorySyncStateRepository implements SyncStateRepository {
 
     private final Map<SyncStateKey, SyncState> syncStates = new ConcurrentHashMap<>();

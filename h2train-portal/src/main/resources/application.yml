@@ -1,7 +1,19 @@
 server:
   port: 8080
 
+spring:
+  datasource:
+    url: ${H2TRAIN_DB_URL:jdbc:h2:file:./data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false}
+    username: ${H2TRAIN_DB_USERNAME:sa}
+    password: ${H2TRAIN_DB_PASSWORD:}
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+
 app:
+  persistence:
+    type: ${APP_PERSISTENCE_TYPE:jdbc}
   http:
     connect-timeout: ${PROVIDER_HTTP_CONNECT_TIMEOUT:5s}
     read-timeout: ${PROVIDER_HTTP_READ_TIMEOUT:30s}

@@ -20,6 +20,7 @@ The daemon depends on the event contracts module. The Kafka adapter depends on t
 - Link several provider connections to the same internal H2Train user account
 - Remember whether automatic sync is enabled for each connected athlete
 - Let the user choose a sync interval of every 5 hours, every 24 hours, or every 7 days
+- Persist connected accounts, sync preferences, and per-event sync state in a local H2 database
 - Sync provider events through event collectors
 - Collect provider events using a shared ontology grouped as `USER_STATE`, `ACTIVITY`, `PHYSIOLOGICAL`, `BODY_COMPOSITION`, and `HEALTH`
 - Publish collected events through an `EventPublisher` port, currently backed by a logging adapter
@@ -66,6 +67,10 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
 - `PROVIDER_HTTP_CONNECT_TIMEOUT` (optional, default `5s`)
 - `PROVIDER_HTTP_READ_TIMEOUT` (optional, default `30s`)
+- `APP_PERSISTENCE_TYPE` (optional, default `jdbc`; use `memory` for non-persistent repositories)
+- `H2TRAIN_DB_URL` (optional, default `jdbc:h2:file:./data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false`)
+- `H2TRAIN_DB_USERNAME` (optional, default `sa`)
+- `H2TRAIN_DB_PASSWORD` (optional, default empty)
 - `APP_BUS_TYPE` (optional, default `logging`; use `kafka` to publish to Kafka)
 - `KAFKA_BOOTSTRAP_SERVERS` (optional, default `localhost:9092`)
 - `KAFKA_TOPIC` (optional, default `h2train.events.v1`)
@@ -81,6 +86,28 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 The backend now fails at startup if `STRAVA_CLIENT_ID` or `STRAVA_CLIENT_SECRET` are missing.
 Set `FITBIT_ENABLED=true` to register the Fitbit provider. Fitbit remains disabled unless that flag is enabled.
 Strava user-state snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
+
+## Persistence
+
+By default, the portal stores connected provider accounts, user sync preferences, and sync cursors in a local H2 file database. When running with `mvn -pl h2train-portal -am spring-boot:run`, Maven starts the app from the `h2train-portal` module directory, so the default local database is created at:
+
+```text
+h2train-portal/data/h2train.mv.db
+```
+
+This means connected Strava/Fitbit accounts and their sync settings survive application restarts. The schema is initialized from `h2train-daemon/src/main/resources/schema.sql`.
+
+To force a repository-root database path instead:
+
+```powershell
+$env:H2TRAIN_DB_URL="jdbc:h2:file:../data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false"
+```
+
+For temporary in-memory execution:
+
+```powershell
+$env:APP_PERSISTENCE_TYPE="memory"
+```
 
 ## Run locally
 

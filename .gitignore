@@ -48,3 +48,9 @@ datalake/**
 !datalake/meta/manifests/
 !datalake/meta/dead_letter/
 !datalake/**/.gitkeep
+
+### Local application database ###
+data/**
+!data/
+!data/.gitkeep
+h2train-portal/data/**

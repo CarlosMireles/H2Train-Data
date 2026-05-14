@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@ConditionalOnProperty(prefix = "app.persistence", name = "type", havingValue = "memory")
 public class InMemoryConnectionRepository implements ConnectionRepository {
 
     private final Map<String, Map<String, ProviderConnection>> connections = new ConcurrentHashMap<>();
