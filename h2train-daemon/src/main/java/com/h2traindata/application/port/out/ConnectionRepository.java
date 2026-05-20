@@ -10,5 +10,7 @@ public interface ConnectionRepository {
 
     Optional<ProviderConnection> findByProviderAndAthlete(String providerId, String athleteId);
 
+    List<ProviderConnection> findByUserId(String userId);
+
     List<ProviderConnection> findAll();
 }

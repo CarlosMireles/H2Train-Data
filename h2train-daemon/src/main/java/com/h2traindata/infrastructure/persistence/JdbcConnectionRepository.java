@@ -116,6 +116,30 @@ public class JdbcConnectionRepository implements ConnectionRepository {
     }
 
     @Override
+    public List<ProviderConnection> findByUserId(String userId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT provider_id,
+                               athlete_id,
+                               athlete_username,
+                               access_token,
+                               refresh_token,
+                               expires_at,
+                               sync_enabled,
+                               sync_interval,
+                               last_sync_cursor,
+                               last_synced_at,
+                               user_id
+                        FROM provider_connections
+                        WHERE user_id = ?
+                        ORDER BY provider_id, athlete_id
+                        """,
+                this::mapConnection,
+                userId
+        );
+    }
+
+    @Override
     public List<ProviderConnection> findAll() {
         return jdbcTemplate.query(
                 """

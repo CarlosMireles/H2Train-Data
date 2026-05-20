@@ -1,7 +1,13 @@
 package com.h2traindata.web.portal;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.SyncInterval;
+import com.h2traindata.web.dto.SyncSettingsResponse;
 import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
@@ -9,17 +15,29 @@ import org.springframework.stereotype.Component;
 public class PortalPageRenderer {
 
     private final ProviderPortalDescriptorFactory descriptorFactory;
+    private final ObjectMapper objectMapper;
 
-    public PortalPageRenderer(ProviderPortalDescriptorFactory descriptorFactory) {
+    public PortalPageRenderer(ProviderPortalDescriptorFactory descriptorFactory,
+                              ObjectMapper objectMapper) {
         this.descriptorFactory = descriptorFactory;
+        this.objectMapper = objectMapper;
     }
 
     public String render(Collection<String> providerIds) {
+        return render(providerIds, null, List.of());
+    }
+
+    public String render(Collection<String> providerIds,
+                         InternalUserAccount userAccount,
+                         Collection<SyncSettingsResponse> connections) {
         String providerCards = providerIds.stream()
                 .sorted()
                 .map(descriptorFactory::create)
                 .map(this::renderProviderCard)
                 .collect(Collectors.joining());
+        String accountEmail = userAccount != null ? userAccount.email() : "";
+        String accountUsername = userAccount != null ? userAccount.username() : "";
+        String accountId = userAccount != null ? userAccount.id() : "";
 
         return """
                 <!DOCTYPE html>
@@ -32,6 +50,16 @@ public class PortalPageRenderer {
                 </head>
                 <body>
                     <div class="shell">
+                        <header class="account-bar">
+                            <div>
+                                <span class="account-label">Internal account</span>
+                                <strong>%s</strong>
+                                <span>%s</span>
+                            </div>
+                            <form method="post" action="/account/logout">
+                                <button class="secondary-action" type="submit">Sign out</button>
+                            </form>
+                        </header>
                         <section class="hero">
                             <div class="brand-lockup">
                                 <img class="brand-logo" src="/h2train-logo.png" alt="H2Train logo">
@@ -48,16 +76,26 @@ public class PortalPageRenderer {
                         <section>
                             <div class="grid-header">
                                 <h2>Available Providers</h2>
+                                <span class="account-id">User ID %s</span>
                             </div>
                             <div class="providers">
                                 __PROVIDER_CARDS__
                             </div>
                         </section>
                     </div>
+                    <script>
+                        window.H2TRAIN_BOOTSTRAP = __BOOTSTRAP__;
+                    </script>
                     <script src="/portal.js" defer></script>
                 </body>
                 </html>
-                """.replace("__PROVIDER_CARDS__", providerCards);
+                """.formatted(
+                escape(accountUsername),
+                escape(accountEmail),
+                escape(accountId)
+        )
+                .replace("__PROVIDER_CARDS__", providerCards)
+                .replace("__BOOTSTRAP__", bootstrapJson(userAccount, connections));
     }
 
     private String renderProviderCard(ProviderPortalDescriptor descriptor) {
@@ -131,5 +169,47 @@ public class PortalPageRenderer {
                         + interval.label()
                         + "</option>")
                 .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    private String bootstrapJson(InternalUserAccount userAccount, Collection<SyncSettingsResponse> connections) {
+        try {
+            PortalBootstrap bootstrap = new PortalBootstrap(
+                    userAccount == null
+                            ? null
+                            : new AccountBootstrap(
+                                    userAccount.id(),
+                                    userAccount.email(),
+                                    userAccount.username(),
+                                    userAccount.providerIds()
+                            ),
+                    connections
+            );
+            return objectMapper.writeValueAsString(bootstrap).replace("</", "<\\/");
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to render portal bootstrap data", exception);
+        }
+    }
+
+    private String escape(String value) {
+        return value == null
+                ? ""
+                : value.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                        .replace("\"", "&quot;");
+    }
+
+    private record PortalBootstrap(
+            AccountBootstrap account,
+            Collection<SyncSettingsResponse> connections
+    ) {
+    }
+
+    private record AccountBootstrap(
+            String userId,
+            String email,
+            String username,
+            Set<String> providers
+    ) {
     }
 }

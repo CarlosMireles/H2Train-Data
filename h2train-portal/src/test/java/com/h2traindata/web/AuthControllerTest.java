@@ -8,9 +8,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.h2traindata.application.port.out.ConnectionRepository;
+import com.h2traindata.application.port.out.UserAccountRepository;
 import com.h2traindata.domain.AthleteProfile;
+import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.web.auth.AuthenticatedSession;
 import java.time.Instant;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -35,9 +39,13 @@ class AuthControllerTest {
     @Autowired
     private ConnectionRepository connectionRepository;
 
+    @Autowired
+    private UserAccountRepository userAccountRepository;
+
     @Test
     void loginRedirectsToStravaAuthorizeEndpoint() throws Exception {
-        mockMvc.perform(get("/auth/strava/login"))
+        mockMvc.perform(get("/auth/strava/login")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-1"))
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("https://www.strava.com/oauth/authorize")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("client_id=12345")));
@@ -45,21 +53,32 @@ class AuthControllerTest {
 
     @Test
     void loginRedirectsToFitbitAuthorizeEndpoint() throws Exception {
-        mockMvc.perform(get("/auth/fitbit/login"))
+        mockMvc.perform(get("/auth/fitbit/login")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-1"))
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("https://www.fitbit.com/oauth2/authorize")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("client_id=fitbit-client")));
     }
 
     @Test
-    void loginCarriesLinkedInternalUserThroughOauthState() throws Exception {
-        mockMvc.perform(get("/auth/strava/login").queryParam("userId", "internal-user-1"))
+    void loginCarriesRandomOauthStateForAuthenticatedUser() throws Exception {
+        mockMvc.perform(get("/auth/strava/login")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-1"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("state=internal-user-1")));
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("state=")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("state=internal-user-1"))));
     }
 
     @Test
     void syncSettingsCanBeReadAndUpdated() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "internal-user-1",
+                "runner@example.com",
+                "runner",
+                "hash",
+                Set.of("strava"),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
         connectionRepository.save(new ProviderConnection(
                 "strava",
                 new AthleteProfile("7", "runner"),
@@ -68,7 +87,8 @@ class AuthControllerTest {
                 Instant.parse("2026-04-10T19:00:00Z")
         ).withUserId("internal-user-1"));
 
-        mockMvc.perform(get("/auth/strava/athletes/7/sync-settings"))
+        mockMvc.perform(get("/auth/strava/athletes/7/sync-settings")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("strava"))
                 .andExpect(jsonPath("$.userId").value("internal-user-1"))
@@ -77,6 +97,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.syncInterval").value("EVERY_24_HOURS"));
 
         mockMvc.perform(put("/auth/strava/athletes/7/sync-settings")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {

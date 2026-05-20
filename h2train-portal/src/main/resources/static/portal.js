@@ -1,16 +1,21 @@
-const storageKey = "h2train.sync.connections.v1";
+const bootstrap = window.H2TRAIN_BOOTSTRAP || { connections: [] };
+let connectionState = indexConnections(bootstrap.connections || []);
+
+function indexConnections(connections) {
+    return connections.reduce(function(index, connection) {
+        if (connection && connection.provider) {
+            index[connection.provider] = connection;
+        }
+        return index;
+    }, {});
+}
 
 function readStoredConnections() {
-    try {
-        const rawValue = window.localStorage.getItem(storageKey);
-        return rawValue ? JSON.parse(rawValue) : {};
-    } catch (error) {
-        return {};
-    }
+    return Object.assign({}, connectionState);
 }
 
 function writeStoredConnections(connections) {
-    window.localStorage.setItem(storageKey, JSON.stringify(connections));
+    connectionState = Object.assign({}, connections);
 }
 
 function clearStoredConnection(providerId) {
@@ -24,6 +29,10 @@ async function fetchSyncSettings(providerId, athleteId) {
         headers: { "Accept": "application/json" }
     });
 
+    if (response.status === 401) {
+        window.location.assign("/login?error=session_required");
+        return null;
+    }
     if (response.status === 404) {
         clearStoredConnection(providerId);
         return null;
@@ -44,6 +53,10 @@ async function updateSyncSettings(providerId, athleteId, payload) {
         body: JSON.stringify(payload)
     });
 
+    if (response.status === 401) {
+        window.location.assign("/login?error=session_required");
+        return null;
+    }
     if (response.status === 404) {
         clearStoredConnection(providerId);
         return null;
@@ -93,10 +106,9 @@ function renderCard(card, connection) {
     const lastSyncValue = card.querySelector("[data-role='last-sync']");
     const isConnected = Boolean(connection && connection.connected && connection.athleteId);
     const effectiveState = isConnected ? connection : disconnectedState(card.dataset.providerId);
-    const linkedUserId = resolveLinkedUserId(effectiveState);
 
     connectLink.textContent = isConnected ? "Reconnect" : "Connect";
-    connectLink.href = buildConnectHref(card.dataset.providerId, linkedUserId);
+    connectLink.href = buildConnectHref(card.dataset.providerId);
     athleteValue.textContent = effectiveState.athleteUsername || "Authorized athlete";
     consentValue.textContent = isConnected ? "Granted" : "Pending";
     lastSyncValue.textContent = formatLastSync(effectiveState.lastSyncedAt);
@@ -151,32 +163,8 @@ async function syncStoredConnections() {
 async function processCallbackConnection() {
     const params = new URLSearchParams(window.location.search);
     const providerId = params.get("connectedProvider");
-    const athleteId = params.get("athleteId");
-    const userId = params.get("userId");
-    if (!providerId || !athleteId) {
+    if (!providerId) {
         return;
-    }
-
-    const connections = readStoredConnections();
-    try {
-        const connection = await fetchSyncSettings(providerId, athleteId);
-        if (connection) {
-            connections[providerId] = connection;
-            writeStoredConnections(connections);
-        }
-    } catch (error) {
-        connections[providerId] = {
-            provider: providerId,
-            userId: userId,
-            athleteId: athleteId,
-            athleteUsername: "Authorized athlete",
-            connected: true,
-            syncEnabled: true,
-            syncInterval: "EVERY_24_HOURS",
-            syncIntervalLabel: "Every 24 hours",
-            lastSyncedAt: null
-        };
-        writeStoredConnections(connections);
     }
 
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -186,22 +174,8 @@ function currentConnection(providerId) {
     return readStoredConnections()[providerId] || null;
 }
 
-function resolveLinkedUserId(preferredConnection) {
-    if (preferredConnection && preferredConnection.userId) {
-        return preferredConnection.userId;
-    }
-
-    const connections = readStoredConnections();
-    return Object.values(connections)
-        .map(function(connection) { return connection && connection.userId ? connection.userId : null; })
-        .find(Boolean) || null;
-}
-
-function buildConnectHref(providerId, userId) {
-    if (!userId) {
-        return "/auth/" + encodeURIComponent(providerId) + "/login";
-    }
-    return "/auth/" + encodeURIComponent(providerId) + "/login?userId=" + encodeURIComponent(userId);
+function buildConnectHref(providerId) {
+    return "/auth/" + encodeURIComponent(providerId) + "/login";
 }
 
 async function persistSettings(card, providerId, athleteId, payload, errorText) {

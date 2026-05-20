@@ -1,10 +1,11 @@
 package com.h2traindata.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.ProviderEventCollector;
@@ -58,7 +59,7 @@ class HandleAuthorizationCallbackUseCaseTest {
     }
 
     @Test
-    void createsInternalUserWhenProviderConnectionIsFirstIdentity() {
+    void rejectsProviderConnectionWithoutInternalUser() {
         when(connector.providerId()).thenReturn("strava");
         when(collector.providerId()).thenReturn("strava");
         when(collector.eventType()).thenReturn(EventType.USER_STATE);
@@ -78,11 +79,6 @@ class HandleAuthorizationCallbackUseCaseTest {
                 Instant.now().plusSeconds(600)
         );
         when(connector.connect("oauth-code")).thenReturn(providerConnection);
-        when(userAccountRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        ProviderConnection linkedConnection = useCase.execute("strava", "oauth-code", null);
-
-        assertNotNull(linkedConnection.userId());
-        verify(connectionRepository).save(linkedConnection);
+        assertThrows(AuthenticationRequiredException.class, () -> useCase.execute("strava", "oauth-code", null));
     }
 }

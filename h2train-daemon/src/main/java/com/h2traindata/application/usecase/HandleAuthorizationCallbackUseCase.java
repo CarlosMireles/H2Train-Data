@@ -1,12 +1,12 @@
 package com.h2traindata.application.usecase;
 
+import com.h2traindata.application.exception.AuthenticationRequiredException;
+import com.h2traindata.application.exception.UserAccountNotFoundException;
 import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.port.out.UserAccountRepository;
-import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.application.service.ProviderRegistry;
+import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.ProviderConnection;
-import java.time.Instant;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -30,14 +30,15 @@ public class HandleAuthorizationCallbackUseCase {
         InternalUserAccount userAccount = resolveUserAccount(userId);
         ProviderConnection linkedConnection = connection.withUserId(userAccount.id());
         connectionRepository.save(linkedConnection);
+        userAccountRepository.save(userAccount.withProvider(providerId));
         return linkedConnection;
     }
 
     private InternalUserAccount resolveUserAccount(String requestedUserId) {
-        if (StringUtils.hasText(requestedUserId)) {
-            return userAccountRepository.findById(requestedUserId)
-                    .orElseGet(() -> userAccountRepository.save(new InternalUserAccount(requestedUserId, Instant.now())));
+        if (!StringUtils.hasText(requestedUserId)) {
+            throw new AuthenticationRequiredException();
         }
-        return userAccountRepository.save(new InternalUserAccount(UUID.randomUUID().toString(), Instant.now()));
+        return userAccountRepository.findById(requestedUserId)
+                .orElseThrow(() -> new UserAccountNotFoundException(requestedUserId));
     }
 }

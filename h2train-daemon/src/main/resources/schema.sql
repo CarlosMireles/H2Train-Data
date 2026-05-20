@@ -1,7 +1,22 @@
 CREATE TABLE IF NOT EXISTS user_accounts (
     id VARCHAR(64) PRIMARY KEY,
+    email VARCHAR(320),
+    username VARCHAR(128),
+    password_hash VARCHAR(1024),
+    provider_ids VARCHAR(1024),
     created_at VARCHAR(64) NOT NULL
 );
+
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS email VARCHAR(320);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS username VARCHAR(128);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS password_hash VARCHAR(1024);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS provider_ids VARCHAR(1024);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_accounts_email
+    ON user_accounts (email);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_accounts_username
+    ON user_accounts (username);
 
 CREATE TABLE IF NOT EXISTS provider_connections (
     provider_id VARCHAR(32) NOT NULL,

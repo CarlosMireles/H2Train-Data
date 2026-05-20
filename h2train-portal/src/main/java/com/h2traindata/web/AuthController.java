@@ -1,5 +1,7 @@
 package com.h2traindata.web;
 
+import com.h2traindata.application.exception.AuthenticationRequiredException;
+import com.h2traindata.application.exception.ForbiddenAccountAccessException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.application.usecase.GetProviderConnectionUseCase;
@@ -14,7 +16,11 @@ import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.web.dto.SyncEventsResponse;
 import com.h2traindata.web.dto.SyncSettingsRequest;
 import com.h2traindata.web.dto.SyncSettingsResponse;
+import com.h2traindata.web.auth.AuthenticatedSession;
+import com.h2traindata.web.auth.ProviderOAuthStateStore;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.net.URI;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -46,6 +52,8 @@ public class AuthController {
     private final UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase;
     private final ProviderRegistry providerRegistry;
     private final SyncSettingsMapper syncSettingsMapper;
+    private final AuthenticatedSession authenticatedSession;
+    private final ProviderOAuthStateStore providerOAuthStateStore;
 
     public AuthController(StartAuthorizationUseCase startAuthorizationUseCase,
                           GetProviderConnectionUseCase getProviderConnectionUseCase,
@@ -54,7 +62,9 @@ public class AuthController {
                           SyncAllProviderEventsUseCase syncAllProviderEventsUseCase,
                           UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase,
                           ProviderRegistry providerRegistry,
-                          SyncSettingsMapper syncSettingsMapper) {
+                          SyncSettingsMapper syncSettingsMapper,
+                          AuthenticatedSession authenticatedSession,
+                          ProviderOAuthStateStore providerOAuthStateStore) {
         this.startAuthorizationUseCase = startAuthorizationUseCase;
         this.getProviderConnectionUseCase = getProviderConnectionUseCase;
         this.handleAuthorizationCallbackUseCase = handleAuthorizationCallbackUseCase;
@@ -63,12 +73,22 @@ public class AuthController {
         this.updateSyncPreferencesUseCase = updateSyncPreferencesUseCase;
         this.providerRegistry = providerRegistry;
         this.syncSettingsMapper = syncSettingsMapper;
+        this.authenticatedSession = authenticatedSession;
+        this.providerOAuthStateStore = providerOAuthStateStore;
     }
 
     @GetMapping("/{provider}/login")
     public ResponseEntity<Void> login(@PathVariable String provider,
-                                      @RequestParam(value = "userId", required = false) String userId) {
-        URI authorizationUri = startAuthorizationUseCase.execute(provider, userId);
+                                      HttpServletRequest request) {
+        String userId = authenticatedSession.currentUserId(request).orElse(null);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create("/login?error=session_required"))
+                    .build();
+        }
+
+        String state = providerOAuthStateStore.createState(request.getSession(true), userId);
+        URI authorizationUri = startAuthorizationUseCase.execute(provider, state);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, authorizationUri.toString())
                 .build();
@@ -77,8 +97,12 @@ public class AuthController {
     @GetMapping("/{provider}/callback")
     public ResponseEntity<Void> callback(@PathVariable String provider,
                                          @RequestParam("code") String code,
-                                         @RequestParam(value = "state", required = false) String state) {
-        ProviderConnection connection = handleAuthorizationCallbackUseCase.execute(provider, code, state);
+                                         @RequestParam(value = "state", required = false) String state,
+                                         HttpSession session) {
+        String userId = providerOAuthStateStore.consumeUserId(session, state)
+                .orElseThrow(AuthenticationRequiredException::new);
+        ProviderConnection connection = handleAuthorizationCallbackUseCase.execute(provider, code, userId);
+        session.setAttribute(AuthenticatedSession.USER_ID_ATTRIBUTE, connection.userId());
         try {
             syncAllProviderEventsUseCase.execute(provider, connection.athlete().id());
         } catch (ProviderRateLimitException exception) {
@@ -91,7 +115,6 @@ public class AuthController {
 
         URI redirectUri = UriComponentsBuilder.fromPath("/")
                 .queryParam("connectedProvider", provider)
-                .queryParam("userId", connection.userId())
                 .queryParam("athleteId", connection.athlete().id())
                 .build()
                 .toUri();
@@ -104,7 +127,9 @@ public class AuthController {
     @GetMapping("/{provider}/athletes/{athleteId}/sync/{eventType}")
     public SyncEventsResponse syncEvents(@PathVariable String provider,
                                          @PathVariable String athleteId,
-                                         @PathVariable EventType eventType) {
+                                         @PathVariable EventType eventType,
+                                         HttpServletRequest request) {
+        ensureOwnedConnection(provider, athleteId, request);
         EventBatch batch = syncProviderEventsUseCase.execute(provider, athleteId, eventType, null);
         return new SyncEventsResponse(
                 provider,
@@ -117,8 +142,9 @@ public class AuthController {
 
     @GetMapping("/{provider}/athletes/{athleteId}/sync-settings")
     public SyncSettingsResponse getSyncSettings(@PathVariable String provider,
-                                                @PathVariable String athleteId) {
-        ProviderConnection connection = getProviderConnectionUseCase.execute(provider, athleteId);
+                                                @PathVariable String athleteId,
+                                                HttpServletRequest request) {
+        ProviderConnection connection = ensureOwnedConnection(provider, athleteId, request);
         return syncSettingsMapper.toResponse(connection);
     }
 
@@ -129,8 +155,9 @@ public class AuthController {
     )
     public SyncSettingsResponse updateSyncSettings(@PathVariable String provider,
                                                    @PathVariable String athleteId,
-                                                   @RequestBody SyncSettingsRequest request) {
-        ProviderConnection existingConnection = getProviderConnectionUseCase.execute(provider, athleteId);
+                                                   @RequestBody SyncSettingsRequest request,
+                                                   HttpServletRequest httpRequest) {
+        ProviderConnection existingConnection = ensureOwnedConnection(provider, athleteId, httpRequest);
         ProviderConnection updatedConnection = updateSyncPreferencesUseCase.execute(
                 provider,
                 athleteId,
@@ -145,5 +172,14 @@ public class AuthController {
                 "status", "ok",
                 "providers", String.join(",", providerRegistry.registeredProviderIds())
         );
+    }
+
+    private ProviderConnection ensureOwnedConnection(String provider, String athleteId, HttpServletRequest request) {
+        String userId = authenticatedSession.requireUserId(request);
+        ProviderConnection connection = getProviderConnectionUseCase.execute(provider, athleteId);
+        if (!userId.equals(connection.userId())) {
+            throw new ForbiddenAccountAccessException();
+        }
+        return connection;
     }
 }

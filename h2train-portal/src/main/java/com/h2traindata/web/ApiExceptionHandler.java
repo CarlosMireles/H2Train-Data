@@ -1,9 +1,14 @@
 package com.h2traindata.web;
 
 import com.h2traindata.application.exception.ConnectionNotFoundException;
+import com.h2traindata.application.exception.AuthenticationRequiredException;
+import com.h2traindata.application.exception.DuplicateUserAccountException;
+import com.h2traindata.application.exception.ForbiddenAccountAccessException;
+import com.h2traindata.application.exception.InvalidCredentialsException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.exception.UnknownProviderException;
 import com.h2traindata.application.exception.UnsupportedEventTypeException;
+import com.h2traindata.application.exception.UserAccountNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -23,6 +28,30 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConnectionNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleConnectionNotFound(ConnectionNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(UserAccountNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUserAccountNotFound(UserAccountNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateUserAccountException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateUserAccount(DuplicateUserAccountException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler({AuthenticationRequiredException.class, InvalidCredentialsException.class})
+    public ResponseEntity<Map<String, String>> handleAuthenticationRequired(RuntimeException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(ForbiddenAccountAccessException.class)
+    public ResponseEntity<Map<String, String>> handleForbiddenAccountAccess(ForbiddenAccountAccessException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", exception.getMessage()));
     }
 

@@ -8,4 +8,8 @@ public interface UserAccountRepository {
     InternalUserAccount save(InternalUserAccount userAccount);
 
     Optional<InternalUserAccount> findById(String userId);
+
+    Optional<InternalUserAccount> findByEmail(String email);
+
+    Optional<InternalUserAccount> findByUsername(String username);
 }

@@ -27,6 +27,13 @@ public class InMemoryConnectionRepository implements ConnectionRepository {
     }
 
     @Override
+    public List<ProviderConnection> findByUserId(String userId) {
+        return findAll().stream()
+                .filter(connection -> userId != null && userId.equals(connection.userId()))
+                .toList();
+    }
+
+    @Override
     public List<ProviderConnection> findAll() {
         return connections.values().stream()
                 .flatMap(providerConnections -> providerConnections.values().stream())

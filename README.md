@@ -14,6 +14,8 @@ The daemon depends on the event contracts module. The Kafka adapter depends on t
 
 ## Current scope
 
+- Register and sign in to an internal H2Train account with username, email, and password
+- Sign in or register through Google OAuth when Google login is configured
 - Redirect a user to a provider OAuth login
 - Receive the OAuth callback code and redirect the browser back to the portal
 - Exchange the code for provider tokens
@@ -33,9 +35,11 @@ The code is structured around clean ports and provider adapters so new sources s
 
 ## Internal account linking
 
-- Every `ProviderConnection` now carries an internal `userId`
-- The first OAuth authorization creates that internal account automatically
-- Subsequent provider authorizations can reuse the same `userId` and link multiple providers to the same person
+- Users must first create or sign in to an internal account
+- Internal accounts store `userId`, `email`, `username`, a PBKDF2 password hash, and linked provider IDs
+- Google login creates or reuses the internal account by verified email
+- Every `ProviderConnection` carries the authenticated internal `userId`
+- Provider authorizations started from the portal link Strava/Fitbit to the current internal account
 - Event payloads keep their provider-native `athleteId`; the cross-provider relationship lives in the connection model through `userId`
 
 ## Normalized event model
@@ -64,6 +68,10 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `FITBIT_CLIENT_ID`
 - `FITBIT_CLIENT_SECRET`
 - `FITBIT_REDIRECT_URI`
+- `GOOGLE_LOGIN_ENABLED` (optional, default `false`)
+- `GOOGLE_CLIENT_ID` (required only when Google login is enabled)
+- `GOOGLE_CLIENT_SECRET` (required only when Google login is enabled)
+- `GOOGLE_REDIRECT_URI` (optional, default `http://localhost:8080/auth/google/callback`)
 - `SYNC_CONNECTION_PARALLELISM` (optional, default `4`)
 - `SYNC_ACTIVITY_PARALLELISM` (optional, default `2`)
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
@@ -93,10 +101,11 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 The backend now fails at startup if `STRAVA_CLIENT_ID` or `STRAVA_CLIENT_SECRET` are missing.
 Set `FITBIT_ENABLED=true` to register the Fitbit provider. Fitbit remains disabled unless that flag is enabled.
 Strava user-state snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
+Set `GOOGLE_LOGIN_ENABLED=true` and configure the Google OAuth client values to show "Continue with Google" on the login and registration pages.
 
 ## Persistence
 
-By default, the portal stores connected provider accounts, user sync preferences, and sync cursors in a local H2 file database. When running with `mvn -pl h2train-portal -am spring-boot:run`, Maven starts the app from the `h2train-portal` module directory, so the default local database is created at:
+By default, the portal stores internal user accounts, connected provider accounts, user sync preferences, and sync cursors in a local H2 file database. When running with `mvn -pl h2train-portal -am spring-boot:run`, Maven starts the app from the `h2train-portal` module directory, so the default local database is created at:
 
 ```text
 h2train-portal/data/h2train.mv.db
@@ -126,6 +135,11 @@ $env:FITBIT_ENABLED="true"
 $env:FITBIT_CLIENT_ID="your-fitbit-client-id"
 $env:FITBIT_CLIENT_SECRET="your-fitbit-client-secret"
 $env:FITBIT_REDIRECT_URI="http://localhost:8080/auth/fitbit/callback"
+$env:GOOGLE_LOGIN_ENABLED="false"
+# Optional when GOOGLE_LOGIN_ENABLED=true:
+# $env:GOOGLE_CLIENT_ID="your-google-client-id"
+# $env:GOOGLE_CLIENT_SECRET="your-google-client-secret"
+# $env:GOOGLE_REDIRECT_URI="http://localhost:8080/auth/google/callback"
 $env:SYNC_CONNECTION_PARALLELISM="4"
 $env:SYNC_ACTIVITY_PARALLELISM="2"
 $env:SYNC_METRICS_PARALLELISM="2"
@@ -204,12 +218,22 @@ If an event cannot be parsed, the consumer writes the original payload plus erro
 ## Main endpoints
 
 - `GET /`
+- `GET /login`
+- `GET /register`
+- `POST /account/register`
+- `POST /account/login`
+- `POST /account/logout`
+- `GET /account/me`
+- `GET /auth/google/login`
+- `GET /auth/google/callback?code=...&state=...`
 - `GET /auth/{provider}/login`
 - `GET /auth/{provider}/callback?code=...`
 - `GET /auth/{provider}/athletes/{athleteId}/sync/{eventType}`
 - `GET /auth/{provider}/athletes/{athleteId}/sync-settings`
 - `PUT /auth/{provider}/athletes/{athleteId}/sync-settings`
 - `GET /auth/health`
+
+The provider authorization and sync setting endpoints require an authenticated internal account session.
 
 ## Module layout
 

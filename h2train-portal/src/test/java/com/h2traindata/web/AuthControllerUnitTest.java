@@ -15,12 +15,15 @@ import com.h2traindata.application.usecase.SyncProviderEventsUseCase;
 import com.h2traindata.application.usecase.UpdateSyncPreferencesUseCase;
 import com.h2traindata.domain.AthleteProfile;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.web.auth.AuthenticatedSession;
+import com.h2traindata.web.auth.ProviderOAuthStateStore;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpSession;
 
 class AuthControllerUnitTest {
 
@@ -33,6 +36,8 @@ class AuthControllerUnitTest {
     private final UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase = Mockito.mock(UpdateSyncPreferencesUseCase.class);
     private final ProviderRegistry providerRegistry = Mockito.mock(ProviderRegistry.class);
     private final SyncSettingsMapper syncSettingsMapper = Mockito.mock(SyncSettingsMapper.class);
+    private final AuthenticatedSession authenticatedSession = new AuthenticatedSession();
+    private final ProviderOAuthStateStore providerOAuthStateStore = new ProviderOAuthStateStore();
 
     private final AuthController controller = new AuthController(
             startAuthorizationUseCase,
@@ -42,7 +47,9 @@ class AuthControllerUnitTest {
             syncAllProviderEventsUseCase,
             updateSyncPreferencesUseCase,
             providerRegistry,
-            syncSettingsMapper
+            syncSettingsMapper,
+            authenticatedSession,
+            providerOAuthStateStore
     );
 
     @Test
@@ -59,11 +66,18 @@ class AuthControllerUnitTest {
                 .when(syncAllProviderEventsUseCase)
                 .execute("fitbit", "ABC123");
 
-        ResponseEntity<Void> response = controller.callback("fitbit", "oauth-code", "internal-user-1");
+        MockHttpSession session = new MockHttpSession();
+        String state = providerOAuthStateStore.createState(session, "internal-user-1");
+
+        ResponseEntity<Void> response = controller.callback(
+                "fitbit",
+                "oauth-code",
+                state,
+                session
+        );
 
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         assertTrue(response.getHeaders().getLocation().toString().contains("connectedProvider=fitbit"));
-        assertTrue(response.getHeaders().getLocation().toString().contains("userId=internal-user-1"));
         assertTrue(response.getHeaders().getLocation().toString().contains("athleteId=ABC123"));
     }
 }
