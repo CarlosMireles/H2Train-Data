@@ -17,15 +17,10 @@ public class DatalakePathResolver {
     }
 
     public Path eventsFile(DatalakeEventRecord eventRecord) {
-        ZonedDateTime timestamp = eventRecord.eventTimestamp().atZone(ZoneOffset.UTC);
         return properties.getRootPath()
                 .resolve("events")
-                .resolve("userId=" + segment(eventRecord.userId()))
-                .resolve("provider=" + segment(eventRecord.providerId()))
-                .resolve("eventType=" + segment(eventRecord.eventType()))
-                .resolve("year=%04d".formatted(timestamp.getYear()))
-                .resolve("month=%02d".formatted(timestamp.getMonthValue()))
-                .resolve("day=%02d".formatted(timestamp.getDayOfMonth()))
+                .resolve(segment(eventRecord.providerId()))
+                .resolve(segment(eventRecord.eventType()))
                 .resolve("events.jsonl");
     }
 

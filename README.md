@@ -182,13 +182,9 @@ The default datalake layout is:
 ```text
 datalake/
   events/
-    userId={internalUserId}/
-      provider={providerId}/
-        eventType={eventType}/
-          year={yyyy}/
-            month={MM}/
-              day={dd}/
-                events.jsonl
+    {providerId}/
+      {eventType}/
+        events.jsonl
   dead-letter/
     year={yyyy}/
       month={MM}/
@@ -200,10 +196,10 @@ datalake/
 Example event path:
 
 ```text
-datalake/events/userId=a5994e0f-1fb0-4bb9-9fee-fc1f020b9405/provider=strava/eventType=ACTIVITY/year=2026/month=05/day=14/events.jsonl
+datalake/events/strava/ACTIVITY/events.jsonl
 ```
 
-The date partition is based on the normalized event timestamp. If an event cannot be parsed, the consumer writes the original payload plus error metadata to `datalake/dead-letter`.
+If an event cannot be parsed, the consumer writes the original payload plus error metadata to `datalake/dead-letter`.
 
 ## Main endpoints
 
