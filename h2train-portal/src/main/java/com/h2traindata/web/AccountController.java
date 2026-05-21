@@ -7,7 +7,7 @@ import com.h2traindata.application.usecase.AuthenticateUserAccountUseCase;
 import com.h2traindata.application.usecase.GetUserAccountUseCase;
 import com.h2traindata.application.usecase.RegisterUserAccountUseCase;
 import com.h2traindata.domain.InternalUserAccount;
-import com.h2traindata.web.auth.AuthenticatedSession;
+import com.h2traindata.web.auth.AuthenticatedUserContext;
 import com.h2traindata.web.dto.AccountResponse;
 import com.h2traindata.web.portal.AuthPageRenderer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +31,7 @@ public class AccountController {
     private final AuthenticateUserAccountUseCase authenticateUserAccountUseCase;
     private final GetUserAccountUseCase getUserAccountUseCase;
     private final ConnectionRepository connectionRepository;
-    private final AuthenticatedSession authenticatedSession;
+    private final AuthenticatedUserContext authenticatedUserContext;
     private final AuthPageRenderer authPageRenderer;
     private final GoogleLoginAvailability googleLoginAvailability;
 
@@ -39,14 +39,14 @@ public class AccountController {
                              AuthenticateUserAccountUseCase authenticateUserAccountUseCase,
                              GetUserAccountUseCase getUserAccountUseCase,
                              ConnectionRepository connectionRepository,
-                             AuthenticatedSession authenticatedSession,
+                             AuthenticatedUserContext authenticatedUserContext,
                              AuthPageRenderer authPageRenderer,
                              GoogleLoginAvailability googleLoginAvailability) {
         this.registerUserAccountUseCase = registerUserAccountUseCase;
         this.authenticateUserAccountUseCase = authenticateUserAccountUseCase;
         this.getUserAccountUseCase = getUserAccountUseCase;
         this.connectionRepository = connectionRepository;
-        this.authenticatedSession = authenticatedSession;
+        this.authenticatedUserContext = authenticatedUserContext;
         this.authPageRenderer = authPageRenderer;
         this.googleLoginAvailability = googleLoginAvailability;
     }
@@ -73,7 +73,7 @@ public class AccountController {
 
         try {
             InternalUserAccount userAccount = registerUserAccountUseCase.execute(username, email, password);
-            authenticatedSession.login(session, userAccount);
+            authenticatedUserContext.login(session, userAccount);
             return redirect("/");
         } catch (DuplicateUserAccountException exception) {
             return redirect("/register?error=account_exists");
@@ -88,7 +88,7 @@ public class AccountController {
                                       HttpSession session) {
         try {
             InternalUserAccount userAccount = authenticateUserAccountUseCase.execute(login, password);
-            authenticatedSession.login(session, userAccount);
+            authenticatedUserContext.login(session, userAccount);
             return redirect("/");
         } catch (InvalidCredentialsException exception) {
             return redirect("/login?error=invalid_credentials");
@@ -97,13 +97,13 @@ public class AccountController {
 
     @PostMapping("/account/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
-        authenticatedSession.logout(request);
+        authenticatedUserContext.logout(request);
         return redirect("/login");
     }
 
     @GetMapping(value = "/account/me", produces = MediaType.APPLICATION_JSON_VALUE)
     public AccountResponse me(HttpServletRequest request) {
-        String userId = authenticatedSession.requireUserId(request);
+        String userId = authenticatedUserContext.requireUserId(request);
         InternalUserAccount userAccount = getUserAccountUseCase.execute(userId);
         return toResponse(userAccount);
     }

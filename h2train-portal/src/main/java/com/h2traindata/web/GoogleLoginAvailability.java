@@ -1,18 +1,20 @@
 package com.h2traindata.web;
 
-import com.h2traindata.web.google.GoogleAuthProperties;
+import com.h2traindata.web.identity.ExternalIdentityProviderCatalog;
 import org.springframework.stereotype.Component;
 
 @Component
 public class GoogleLoginAvailability {
 
-    private final GoogleAuthProperties properties;
+    private static final String GOOGLE_PROVIDER_ID = "google";
 
-    public GoogleLoginAvailability(GoogleAuthProperties properties) {
-        this.properties = properties;
+    private final ExternalIdentityProviderCatalog identityProviderCatalog;
+
+    public GoogleLoginAvailability(ExternalIdentityProviderCatalog identityProviderCatalog) {
+        this.identityProviderCatalog = identityProviderCatalog;
     }
 
     public boolean isAvailable() {
-        return properties.isConfigured();
+        return identityProviderCatalog.isConfigured(GOOGLE_PROVIDER_ID);
     }
 }

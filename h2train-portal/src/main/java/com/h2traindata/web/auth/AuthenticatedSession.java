@@ -8,14 +8,21 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AuthenticatedSession {
+public class AuthenticatedSession implements AuthenticatedUserContext {
 
-    public static final String USER_ID_ATTRIBUTE = "h2train.userId";
+    public static final String USER_ID_ATTRIBUTE = AuthenticatedUserContext.USER_ID_ATTRIBUTE;
 
+    @Override
     public void login(HttpSession session, InternalUserAccount userAccount) {
-        session.setAttribute(USER_ID_ATTRIBUTE, userAccount.id());
+        loginUserId(session, userAccount.id());
     }
 
+    @Override
+    public void loginUserId(HttpSession session, String userId) {
+        session.setAttribute(USER_ID_ATTRIBUTE, userId);
+    }
+
+    @Override
     public Optional<String> currentUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -27,10 +34,12 @@ public class AuthenticatedSession {
                 : Optional.empty();
     }
 
+    @Override
     public String requireUserId(HttpServletRequest request) {
         return currentUserId(request).orElseThrow(AuthenticationRequiredException::new);
     }
 
+    @Override
     public void logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null) {

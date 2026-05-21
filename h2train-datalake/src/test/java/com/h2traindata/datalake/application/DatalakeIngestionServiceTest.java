@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.h2traindata.bus.IncomingBusMessage;
 import com.h2traindata.datalake.config.DatalakeProperties;
-import com.h2traindata.datalake.domain.IncomingBusMessage;
 import com.h2traindata.datalake.io.DatalakeDeadLetterWriter;
 import com.h2traindata.datalake.io.DatalakeEventParser;
 import com.h2traindata.datalake.io.DatalakeEventWriter;

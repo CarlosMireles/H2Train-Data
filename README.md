@@ -1,16 +1,15 @@
 # H2Train
 
-This repository is now organized as a Maven multi-module project with a clear split between the user-facing portal and the synchronization daemon.
+This repository is organized as a Maven multi-module project where each module maps to a top-level H2Train component.
 
 ## Modules
 
-- `h2train-events`: shared event contracts used by producers and future consumers
-- `h2train-daemon`: provider integration, OAuth exchange, sync scheduling, event collection, normalization, and sync state management
-- `h2train-bus-kafka`: Kafka adapter for the daemon `EventPublisher` port
+- `h2train-bus`: event contracts, bus ports, incoming message contracts, and Kafka adapters
 - `h2train-datalake`: bus event ingester that writes events to the local datalake as JSON Lines
-- `h2train-portal`: Spring Boot web application, portal UI, user-facing controllers, and static assets
+- `h2train-data-app`: initial application contracts for real-time projections, datamarts, checkpoints, and datalake reads
+- `h2train-portal`: Spring Boot web application, portal UI, provider integrations, account/session logic, sync scheduling, persistence, and static assets
 
-The daemon depends on the event contracts module. The Kafka adapter depends on the daemon port and event contracts. The datalake module keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code, with Kafka only as the current input adapter. The portal depends on the daemon and Kafka adapter modules, exposing the current end-to-end producer experience in a single runnable application while keeping components physically separated in the repository.
+The bus module owns both the stable event/bus contracts and the current Kafka adapter. Core application code still depends on bus interfaces such as `EventPublisher` and `BusMessageHandler`, so another transport can be added inside the Bus component without changing Portal, Datalake, or Data App use cases. The datalake module exposes a `BusMessageHandler` and keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code. The data app module is intentionally contract-only for now, so the future API can consume bus messages, replay the datalake, and update datamarts without binding its core to Kafka, H2, or the local filesystem.
 
 ## Current scope
 
@@ -32,7 +31,7 @@ The daemon depends on the event contracts module. The Kafka adapter depends on t
 - Poll due connections on a scheduler and reuse the stored sync cursor
 - Stop after event collection, returning batches to the caller and updating sync state
 
-The code is structured around clean ports and provider adapters so new sources such as Garmin or Polar can be added without changing the core use cases. Event collection is now modeled generically, so the system can grow beyond activities.
+The code is structured around clean ports and provider adapters so new sources such as Garmin or Polar can be added without changing the core use cases. Event collection is now modeled generically, so the system can grow beyond activities. Replaceable concerns such as password hashing, provider catalogs, external identity login, authenticated sessions, bus publishing/consumption, and datalake sinks are behind interfaces.
 
 ## Internal account linking
 
@@ -89,14 +88,14 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `APP_BUS_TYPE` (optional, default `logging`; use `kafka` to publish to Kafka)
 - `KAFKA_BOOTSTRAP_SERVERS` (optional, default `localhost:9092`)
 - `KAFKA_TOPIC` (optional, default `h2train.events.v1`)
-- `KAFKA_CLIENT_ID` (optional, default `h2train-daemon`)
+- `KAFKA_CLIENT_ID` (optional, default `h2train-portal`)
 - `KAFKA_TOPIC_PARTITIONS` (optional, default `3`)
 - `KAFKA_TOPIC_REPLICATION_FACTOR` (optional, default `1`)
 - `KAFKA_REQUEST_TIMEOUT` (optional, default `10s`)
 - `KAFKA_DELIVERY_TIMEOUT` (optional, default `20s`)
 - `KAFKA_MAX_BLOCK` (optional, default `5s`)
 - `DATALAKE_ROOT_PATH` (optional, default `../datalake` when running `h2train-datalake`)
-- `APP_DATALAKE_BUS_TYPE` (optional, default `kafka`)
+- `APP_BUS_CONSUMER_TYPE` (optional, default `kafka` for `h2train-datalake`; `APP_DATALAKE_BUS_TYPE` is still accepted as a compatibility fallback)
 - `DATALAKE_KAFKA_GROUP_ID` (optional, default `h2train-datalake`)
 - `DATALAKE_KAFKA_CLIENT_ID` (optional, default `h2train-datalake`)
 - `DATALAKE_KAFKA_AUTO_OFFSET_RESET` (optional, default `earliest`)
@@ -116,7 +115,7 @@ By default, the portal stores internal user accounts, connected provider account
 h2train-portal/data/h2train.mv.db
 ```
 
-This means connected Strava/Fitbit accounts and their sync settings survive application restarts. The schema is initialized from `h2train-daemon/src/main/resources/schema.sql`.
+This means connected Strava/Fitbit accounts and their sync settings survive application restarts. The schema is initialized from `h2train-portal/src/main/resources/schema.sql`.
 
 To force a repository-root database path instead:
 
@@ -161,7 +160,7 @@ docker compose up -d kafka
 $env:APP_BUS_TYPE="kafka"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
 $env:KAFKA_TOPIC="h2train.events.v1"
-$env:KAFKA_CLIENT_ID="h2train-daemon"
+$env:KAFKA_CLIENT_ID="h2train-portal"
 mvn -pl h2train-portal -am spring-boot:run
 ```
 
@@ -244,12 +243,14 @@ The provider authorization and sync setting endpoints require an authenticated i
 
 ## Module layout
 
-- `h2train-events/src/main/java/com/h2traindata/domain`: shared event contracts such as `BaseEvent`, `EventType`, and `ProviderEvent`
-- `h2train-daemon/src/main/java/com/h2traindata/application`: use cases, ports, and daemon orchestration
-- `h2train-daemon/src/main/java/com/h2traindata/domain`: daemon domain model such as connections, cursors, sync state, and batches
-- `h2train-daemon/src/main/java/com/h2traindata/infrastructure`: provider adapters, event publishing adapters, persistence, and daemon configuration
-- `h2train-bus-kafka/src/main/java/com/h2traindata/infrastructure/bus/kafka`: Kafka event publisher adapter
-- `h2train-datalake/src/main/java/com/h2traindata/datalake`: bus-agnostic ingestion service, Kafka input adapter, and datalake JSONL writer
+- `h2train-bus/src/main/java/com/h2traindata/domain`: shared event contracts such as `BaseEvent`, `EventType`, and `ProviderEvent`
+- `h2train-bus/src/main/java/com/h2traindata/bus`: bus ports such as `EventPublisher`, `BusMessageHandler`, and `IncomingBusMessage`
+- `h2train-bus/src/main/java/com/h2traindata/infrastructure/bus/kafka`: Kafka bus publisher and consumer adapters
+- `h2train-portal/src/main/java/com/h2traindata/application`: portal use cases, ports, account logic, sync orchestration, and provider authorization
+- `h2train-portal/src/main/java/com/h2traindata/domain`: portal domain model such as connections, cursors, sync state, and batches
+- `h2train-portal/src/main/java/com/h2traindata/infrastructure`: provider adapters, persistence, event publishing adapters, and portal configuration
+- `h2train-datalake/src/main/java/com/h2traindata/datalake`: bus-agnostic ingestion service, datalake sink ports, and JSONL file adapters
+- `h2train-data-app/src/main/java/com/h2traindata/dataapp/application/port`: contracts for event parsing, projections, datamart repositories, checkpoints, and datalake reads
 - `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
 - `h2train-portal/src/main/resources/static`: portal UI assets
 
@@ -259,14 +260,12 @@ The provider authorization and sync setting endpoints require an authenticated i
 
 ## Structure at a glance
 
-- `h2train-events` owns the event model shared across modules
-- `h2train-daemon` owns sync logic and provider integrations
-- `h2train-bus-kafka` owns Kafka-specific publishing
+- `h2train-bus` owns shared event contracts, bus abstractions, and Kafka-specific bus publishing/consumption
 - `h2train-datalake` owns bus event ingestion and local datalake writes
-- `h2train-portal` owns the browser entrypoint and user-facing web endpoints
-- the portal module wires both pieces together through a dependency on the daemon module
+- `h2train-data-app` owns future API projection contracts without a concrete runtime yet
+- `h2train-portal` owns the browser entrypoint, user-facing web endpoints, provider integrations, sync orchestration, and local persistence
 
 ## Next steps
 
 - Implement new providers such as Garmin or Polar behind `ProviderConnector` and `ProviderEventCollector`
-- Build `H2TrainApp` on top of the datalake with a mount factory, datamarts, and a query API
+- Build `H2TrainDataApp` on top of the bus and datalake contracts with a mount factory, datamarts, and a query API

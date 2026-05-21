@@ -2,14 +2,13 @@ package com.h2traindata.web;
 
 import com.h2traindata.application.usecase.AuthenticateGoogleUserUseCase;
 import com.h2traindata.domain.InternalUserAccount;
-import com.h2traindata.web.auth.AuthenticatedSession;
-import com.h2traindata.web.google.GoogleAuthProperties;
-import com.h2traindata.web.google.GoogleOAuthClient;
-import com.h2traindata.web.google.GoogleUserProfile;
+import com.h2traindata.web.auth.AuthenticatedUserContext;
+import com.h2traindata.web.auth.OAuthStateStore;
+import com.h2traindata.web.identity.ExternalIdentityProfile;
+import com.h2traindata.web.identity.ExternalIdentityProvider;
+import com.h2traindata.web.identity.ExternalIdentityProviderCatalog;
 import jakarta.servlet.http.HttpSession;
 import java.net.URI;
-import java.security.SecureRandom;
-import java.util.Base64;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,34 +18,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class GoogleAuthController {
 
-    private static final String GOOGLE_STATE_ATTRIBUTE = "h2train.googleOAuthState";
+    private static final String GOOGLE_PROVIDER_ID = "google";
 
-    private final GoogleAuthProperties googleAuthProperties;
-    private final GoogleOAuthClient googleOAuthClient;
+    private final ExternalIdentityProvider identityProvider;
     private final AuthenticateGoogleUserUseCase authenticateGoogleUserUseCase;
-    private final AuthenticatedSession authenticatedSession;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final AuthenticatedUserContext authenticatedUserContext;
+    private final OAuthStateStore oAuthStateStore;
 
-    public GoogleAuthController(GoogleAuthProperties googleAuthProperties,
-                                GoogleOAuthClient googleOAuthClient,
+    public GoogleAuthController(ExternalIdentityProviderCatalog identityProviderCatalog,
                                 AuthenticateGoogleUserUseCase authenticateGoogleUserUseCase,
-                                AuthenticatedSession authenticatedSession) {
-        this.googleAuthProperties = googleAuthProperties;
-        this.googleOAuthClient = googleOAuthClient;
+                                AuthenticatedUserContext authenticatedUserContext,
+                                OAuthStateStore oAuthStateStore) {
+        this.identityProvider = identityProviderCatalog.provider(GOOGLE_PROVIDER_ID);
         this.authenticateGoogleUserUseCase = authenticateGoogleUserUseCase;
-        this.authenticatedSession = authenticatedSession;
+        this.authenticatedUserContext = authenticatedUserContext;
+        this.oAuthStateStore = oAuthStateStore;
     }
 
     @GetMapping("/auth/google/login")
     public ResponseEntity<Void> login(HttpSession session) {
-        if (!googleAuthProperties.isConfigured()) {
+        if (!identityProvider.isConfigured()) {
             return redirect("/login?error=google_unavailable");
         }
 
-        String state = randomState();
-        session.setAttribute(GOOGLE_STATE_ATTRIBUTE, state);
+        String state = oAuthStateStore.createState(session);
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(googleOAuthClient.authorizationUri(state))
+                .location(identityProvider.authorizationUri(state))
                 .build();
     }
 
@@ -54,29 +51,21 @@ public class GoogleAuthController {
     public ResponseEntity<Void> callback(@RequestParam("code") String code,
                                          @RequestParam("state") String state,
                                          HttpSession session) {
-        Object expectedState = session.getAttribute(GOOGLE_STATE_ATTRIBUTE);
-        session.removeAttribute(GOOGLE_STATE_ATTRIBUTE);
-        if (!(expectedState instanceof String value) || !value.equals(state)) {
+        if (!oAuthStateStore.consumeState(session, state)) {
             return redirect("/login?error=google_state");
         }
 
         try {
-            GoogleUserProfile profile = googleOAuthClient.fetchProfile(code);
+            ExternalIdentityProfile profile = identityProvider.fetchProfile(code);
             InternalUserAccount userAccount = authenticateGoogleUserUseCase.execute(
                     profile.email(),
                     profile.displayName()
             );
-            authenticatedSession.login(session, userAccount);
+            authenticatedUserContext.login(session, userAccount);
             return redirect("/");
         } catch (RuntimeException exception) {
             return redirect("/login?error=google_failed");
         }
-    }
-
-    private String randomState() {
-        byte[] bytes = new byte[24];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private ResponseEntity<Void> redirect(String location) {

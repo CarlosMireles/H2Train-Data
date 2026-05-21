@@ -1,10 +1,10 @@
 package com.h2traindata.web;
 
 import com.h2traindata.application.port.out.ConnectionRepository;
-import com.h2traindata.application.service.ProviderRegistry;
+import com.h2traindata.application.port.out.ProviderCatalog;
 import com.h2traindata.application.usecase.GetUserAccountUseCase;
 import com.h2traindata.domain.InternalUserAccount;
-import com.h2traindata.web.auth.AuthenticatedSession;
+import com.h2traindata.web.auth.AuthenticatedUserContext;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import com.h2traindata.web.portal.PortalPageRenderer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,34 +18,34 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class PortalController {
 
-    private final ProviderRegistry providerRegistry;
+    private final ProviderCatalog providerCatalog;
     private final GetUserAccountUseCase getUserAccountUseCase;
     private final ConnectionRepository connectionRepository;
-    private final AuthenticatedSession authenticatedSession;
+    private final AuthenticatedUserContext authenticatedUserContext;
     private final SyncSettingsMapper syncSettingsMapper;
     private final PortalPageRenderer portalPageRenderer;
 
-    public PortalController(ProviderRegistry providerRegistry,
+    public PortalController(ProviderCatalog providerCatalog,
                             GetUserAccountUseCase getUserAccountUseCase,
                             ConnectionRepository connectionRepository,
-                            AuthenticatedSession authenticatedSession,
+                            AuthenticatedUserContext authenticatedUserContext,
                             SyncSettingsMapper syncSettingsMapper,
                             PortalPageRenderer portalPageRenderer) {
-        this.providerRegistry = providerRegistry;
+        this.providerCatalog = providerCatalog;
         this.getUserAccountUseCase = getUserAccountUseCase;
         this.connectionRepository = connectionRepository;
-        this.authenticatedSession = authenticatedSession;
+        this.authenticatedUserContext = authenticatedUserContext;
         this.syncSettingsMapper = syncSettingsMapper;
         this.portalPageRenderer = portalPageRenderer;
     }
 
     @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> home(HttpServletRequest request) {
-        return authenticatedSession.currentUserId(request)
+        return authenticatedUserContext.currentUserId(request)
                 .map(userId -> {
                     InternalUserAccount userAccount = getUserAccountUseCase.execute(userId);
                     String page = portalPageRenderer.render(
-                            providerRegistry.registeredProviderIds(),
+                            providerCatalog.registeredProviderIds(),
                             userAccount,
                             connectionRepository.findByUserId(userId).stream()
                                     .map(syncSettingsMapper::toResponse)

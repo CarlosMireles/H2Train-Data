@@ -3,7 +3,7 @@ package com.h2traindata.web;
 import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.ForbiddenAccountAccessException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
-import com.h2traindata.application.service.ProviderRegistry;
+import com.h2traindata.application.port.out.ProviderCatalog;
 import com.h2traindata.application.usecase.GetProviderConnectionUseCase;
 import com.h2traindata.application.usecase.HandleAuthorizationCallbackUseCase;
 import com.h2traindata.application.usecase.SyncProviderEventsUseCase;
@@ -16,8 +16,8 @@ import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.web.dto.SyncEventsResponse;
 import com.h2traindata.web.dto.SyncSettingsRequest;
 import com.h2traindata.web.dto.SyncSettingsResponse;
-import com.h2traindata.web.auth.AuthenticatedSession;
-import com.h2traindata.web.auth.ProviderOAuthStateStore;
+import com.h2traindata.web.auth.AuthenticatedUserContext;
+import com.h2traindata.web.auth.OAuthStateStore;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -50,10 +50,10 @@ public class AuthController {
     private final SyncProviderEventsUseCase syncProviderEventsUseCase;
     private final SyncAllProviderEventsUseCase syncAllProviderEventsUseCase;
     private final UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase;
-    private final ProviderRegistry providerRegistry;
+    private final ProviderCatalog providerCatalog;
     private final SyncSettingsMapper syncSettingsMapper;
-    private final AuthenticatedSession authenticatedSession;
-    private final ProviderOAuthStateStore providerOAuthStateStore;
+    private final AuthenticatedUserContext authenticatedUserContext;
+    private final OAuthStateStore oAuthStateStore;
 
     public AuthController(StartAuthorizationUseCase startAuthorizationUseCase,
                           GetProviderConnectionUseCase getProviderConnectionUseCase,
@@ -61,33 +61,33 @@ public class AuthController {
                           SyncProviderEventsUseCase syncProviderEventsUseCase,
                           SyncAllProviderEventsUseCase syncAllProviderEventsUseCase,
                           UpdateSyncPreferencesUseCase updateSyncPreferencesUseCase,
-                          ProviderRegistry providerRegistry,
+                          ProviderCatalog providerCatalog,
                           SyncSettingsMapper syncSettingsMapper,
-                          AuthenticatedSession authenticatedSession,
-                          ProviderOAuthStateStore providerOAuthStateStore) {
+                          AuthenticatedUserContext authenticatedUserContext,
+                          OAuthStateStore oAuthStateStore) {
         this.startAuthorizationUseCase = startAuthorizationUseCase;
         this.getProviderConnectionUseCase = getProviderConnectionUseCase;
         this.handleAuthorizationCallbackUseCase = handleAuthorizationCallbackUseCase;
         this.syncProviderEventsUseCase = syncProviderEventsUseCase;
         this.syncAllProviderEventsUseCase = syncAllProviderEventsUseCase;
         this.updateSyncPreferencesUseCase = updateSyncPreferencesUseCase;
-        this.providerRegistry = providerRegistry;
+        this.providerCatalog = providerCatalog;
         this.syncSettingsMapper = syncSettingsMapper;
-        this.authenticatedSession = authenticatedSession;
-        this.providerOAuthStateStore = providerOAuthStateStore;
+        this.authenticatedUserContext = authenticatedUserContext;
+        this.oAuthStateStore = oAuthStateStore;
     }
 
     @GetMapping("/{provider}/login")
     public ResponseEntity<Void> login(@PathVariable String provider,
                                       HttpServletRequest request) {
-        String userId = authenticatedSession.currentUserId(request).orElse(null);
+        String userId = authenticatedUserContext.currentUserId(request).orElse(null);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create("/login?error=session_required"))
                     .build();
         }
 
-        String state = providerOAuthStateStore.createState(request.getSession(true), userId);
+        String state = oAuthStateStore.createState(request.getSession(true), userId);
         URI authorizationUri = startAuthorizationUseCase.execute(provider, state);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, authorizationUri.toString())
@@ -99,10 +99,10 @@ public class AuthController {
                                          @RequestParam("code") String code,
                                          @RequestParam(value = "state", required = false) String state,
                                          HttpSession session) {
-        String userId = providerOAuthStateStore.consumeUserId(session, state)
+        String userId = oAuthStateStore.consumeUserId(session, state)
                 .orElseThrow(AuthenticationRequiredException::new);
         ProviderConnection connection = handleAuthorizationCallbackUseCase.execute(provider, code, userId);
-        session.setAttribute(AuthenticatedSession.USER_ID_ATTRIBUTE, connection.userId());
+        authenticatedUserContext.loginUserId(session, connection.userId());
         try {
             syncAllProviderEventsUseCase.execute(provider, connection.athlete().id());
         } catch (ProviderRateLimitException exception) {
@@ -170,12 +170,12 @@ public class AuthController {
     public Map<String, String> health() {
         return Map.of(
                 "status", "ok",
-                "providers", String.join(",", providerRegistry.registeredProviderIds())
+                "providers", String.join(",", providerCatalog.registeredProviderIds())
         );
     }
 
     private ProviderConnection ensureOwnedConnection(String provider, String athleteId, HttpServletRequest request) {
-        String userId = authenticatedSession.requireUserId(request);
+        String userId = authenticatedUserContext.requireUserId(request);
         ProviderConnection connection = getProviderConnectionUseCase.execute(provider, athleteId);
         if (!userId.equals(connection.userId())) {
             throw new ForbiddenAccountAccessException();

@@ -15,17 +15,16 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>h2train-parent</name>
-    <description>Parent build for the H2Train portal and daemon modules</description>
+    <description>Parent build for the H2Train component modules</description>
 
     <properties>
         <java.version>17</java.version>
     </properties>
 
     <modules>
-        <module>h2train-events</module>
-        <module>h2train-daemon</module>
-        <module>h2train-bus-kafka</module>
+        <module>h2train-bus</module>
         <module>h2train-datalake</module>
+        <module>h2train-data-app</module>
         <module>h2train-portal</module>
     </modules>
 

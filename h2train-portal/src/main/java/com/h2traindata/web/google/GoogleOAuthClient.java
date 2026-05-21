@@ -1,6 +1,8 @@
 package com.h2traindata.web.google;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.h2traindata.web.identity.ExternalIdentityProfile;
+import com.h2traindata.web.identity.ExternalIdentityProvider;
 import java.net.URI;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -10,9 +12,10 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
-public class GoogleOAuthClient {
+public class GoogleOAuthClient implements ExternalIdentityProvider {
 
     private static final String SCOPE = "openid email profile";
+    private static final String PROVIDER_ID = "google";
 
     private final GoogleAuthProperties properties;
     private final RestClient restClient;
@@ -22,6 +25,17 @@ public class GoogleOAuthClient {
         this.restClient = restClient;
     }
 
+    @Override
+    public String providerId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
+    public boolean isConfigured() {
+        return properties.isConfigured();
+    }
+
+    @Override
     public URI authorizationUri(String state) {
         return UriComponentsBuilder.fromUriString(properties.getAuthorizationUri())
                 .queryParam("client_id", properties.getClientId())
@@ -34,7 +48,8 @@ public class GoogleOAuthClient {
                 .toUri();
     }
 
-    public GoogleUserProfile fetchProfile(String code) {
+    @Override
+    public ExternalIdentityProfile fetchProfile(String code) {
         GoogleTokenResponse tokenResponse = exchangeCode(code);
         GoogleUserInfoResponse userInfo = restClient.get()
                 .uri(properties.getUserInfoUri())
@@ -45,7 +60,7 @@ public class GoogleOAuthClient {
         if (userInfo == null || !Boolean.TRUE.equals(userInfo.emailVerified())) {
             throw new IllegalStateException("Google account email is not verified");
         }
-        return new GoogleUserProfile(userInfo.email(), userInfo.name());
+        return new ExternalIdentityProfile(userInfo.email(), userInfo.name());
     }
 
     private GoogleTokenResponse exchangeCode(String code) {

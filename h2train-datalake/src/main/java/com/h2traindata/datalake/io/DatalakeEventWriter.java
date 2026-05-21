@@ -1,6 +1,7 @@
 package com.h2traindata.datalake.io;
 
 import com.h2traindata.datalake.domain.DatalakeEventRecord;
+import com.h2traindata.datalake.application.port.DatalakeEventSink;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,7 +10,7 @@ import java.nio.file.StandardOpenOption;
 import org.springframework.stereotype.Component;
 
 @Component
-public class DatalakeEventWriter {
+public class DatalakeEventWriter implements DatalakeEventSink {
 
     private final DatalakePathResolver pathResolver;
 
@@ -17,6 +18,7 @@ public class DatalakeEventWriter {
         this.pathResolver = pathResolver;
     }
 
+    @Override
     public synchronized Path write(DatalakeEventRecord eventRecord) {
         Path target = pathResolver.eventsFile(eventRecord);
         appendLine(target, eventRecord.rawJson());

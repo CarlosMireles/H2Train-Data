@@ -2,7 +2,8 @@ package com.h2traindata.datalake.io;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.h2traindata.datalake.domain.IncomingBusMessage;
+import com.h2traindata.bus.IncomingBusMessage;
+import com.h2traindata.datalake.application.port.DatalakeDeadLetterSink;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,7 +15,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
-public class DatalakeDeadLetterWriter {
+public class DatalakeDeadLetterWriter implements DatalakeDeadLetterSink {
 
     private final DatalakePathResolver pathResolver;
     private final ObjectMapper objectMapper;
@@ -24,6 +25,7 @@ public class DatalakeDeadLetterWriter {
         this.objectMapper = objectMapper;
     }
 
+    @Override
     public synchronized Path write(IncomingBusMessage message, RuntimeException exception) {
         ZonedDateTime failedAt = ZonedDateTime.now(java.time.ZoneOffset.UTC);
         Path target = pathResolver.deadLetterFile(failedAt);
