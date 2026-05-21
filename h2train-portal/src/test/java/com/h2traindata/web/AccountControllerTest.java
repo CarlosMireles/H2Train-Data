@@ -58,6 +58,8 @@ class AccountControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/portal.css")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/h2train-logo.png")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("auth-hero")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"confirmPassword\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Confirm password")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Account Portal")));
     }
 
@@ -67,7 +69,8 @@ class AccountControllerTest {
                         .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
                         .param("username", "new-runner")
                         .param("email", "new-runner@example.com")
-                        .param("password", "correct-password"))
+                        .param("password", "correct-password")
+                        .param("confirmPassword", "correct-password"))
                 .andExpect(status().isSeeOther())
                 .andExpect(header().string("Location", "/"))
                 .andExpect(request().sessionAttribute(AuthenticatedSession.USER_ID_ATTRIBUTE, org.hamcrest.Matchers.notNullValue()));
@@ -75,6 +78,20 @@ class AccountControllerTest {
         InternalUserAccount userAccount = userAccountRepository.findByEmail("new-runner@example.com").orElseThrow();
         org.junit.jupiter.api.Assertions.assertEquals("new-runner", userAccount.username());
         org.junit.jupiter.api.Assertions.assertNotEquals("correct-password", userAccount.passwordHash());
+    }
+
+    @Test
+    void registerRejectsMismatchedPasswordConfirmation() throws Exception {
+        mockMvc.perform(post("/account/register")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("username", "mismatch-runner")
+                        .param("email", "mismatch@example.com")
+                        .param("password", "correct-password")
+                        .param("confirmPassword", "different-password"))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "/register?error=password_mismatch"));
+
+        org.junit.jupiter.api.Assertions.assertTrue(userAccountRepository.findByEmail("mismatch@example.com").isEmpty());
     }
 
     @Test

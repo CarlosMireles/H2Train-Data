@@ -28,6 +28,7 @@ public class GoogleOAuthClient {
                 .queryParam("redirect_uri", properties.getRedirectUri())
                 .queryParam("response_type", "code")
                 .queryParam("scope", SCOPE)
+                .queryParam("prompt", "select_account")
                 .queryParam("state", state)
                 .build()
                 .toUri();

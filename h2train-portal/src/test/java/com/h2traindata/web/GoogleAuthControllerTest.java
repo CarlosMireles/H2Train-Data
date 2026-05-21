@@ -35,6 +35,7 @@ class GoogleAuthControllerTest {
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("https://accounts.google.com/o/oauth2/v2/auth")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("client_id=google-client")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("prompt=select_account")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("redirect_uri=http://localhost:8080/auth/google/callback")));
     }
 }

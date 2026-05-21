@@ -65,7 +65,12 @@ public class AccountController {
     public ResponseEntity<Void> register(@RequestParam String username,
                                          @RequestParam String email,
                                          @RequestParam String password,
+                                         @RequestParam(value = "confirmPassword", required = false) String confirmPassword,
                                          HttpSession session) {
+        if (!password.equals(confirmPassword)) {
+            return redirect("/register?error=password_mismatch");
+        }
+
         try {
             InternalUserAccount userAccount = registerUserAccountUseCase.execute(username, email, password);
             authenticatedSession.login(session, userAccount);

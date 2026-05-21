@@ -48,6 +48,10 @@ public class AuthPageRenderer {
                                 <span>Password</span>
                                 <input name="password" type="password" autocomplete="new-password" minlength="8" required>
                             </label>
+                            <label>
+                                <span>Confirm password</span>
+                                <input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+                            </label>
                             <button class="primary-action" type="submit">Create account</button>
                         </form>
                         """,
@@ -146,6 +150,7 @@ public class AuthPageRenderer {
             case "invalid_credentials" -> "The credentials are not valid.";
             case "account_exists" -> "An account already exists with that email or username.";
             case "invalid_registration" -> "Use a valid email and a password with at least 8 characters.";
+            case "password_mismatch" -> "Passwords must match.";
             case "google_unavailable" -> "Google sign-in is not configured.";
             case "google_failed" -> "Google sign-in could not be completed.";
             case "google_state" -> "Google sign-in state was invalid. Start again.";
