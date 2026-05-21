@@ -4,6 +4,7 @@ import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.UserAccountNotFoundException;
 import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.port.out.UserAccountRepository;
+import com.h2traindata.application.service.AccountEventPublisher;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.ProviderConnection;
@@ -16,13 +17,16 @@ public class HandleAuthorizationCallbackUseCase {
     private final ProviderRegistry providerRegistry;
     private final ConnectionRepository connectionRepository;
     private final UserAccountRepository userAccountRepository;
+    private final AccountEventPublisher accountEventPublisher;
 
     public HandleAuthorizationCallbackUseCase(ProviderRegistry providerRegistry,
                                               ConnectionRepository connectionRepository,
-                                              UserAccountRepository userAccountRepository) {
+                                              UserAccountRepository userAccountRepository,
+                                              AccountEventPublisher accountEventPublisher) {
         this.providerRegistry = providerRegistry;
         this.connectionRepository = connectionRepository;
         this.userAccountRepository = userAccountRepository;
+        this.accountEventPublisher = accountEventPublisher;
     }
 
     public ProviderConnection execute(String providerId, String code, String userId) {
@@ -30,7 +34,9 @@ public class HandleAuthorizationCallbackUseCase {
         InternalUserAccount userAccount = resolveUserAccount(userId);
         ProviderConnection linkedConnection = connection.withUserId(userAccount.id());
         connectionRepository.save(linkedConnection);
-        userAccountRepository.save(userAccount.withProvider(providerId));
+        InternalUserAccount updatedUserAccount = userAccount.withProvider(providerId);
+        userAccountRepository.save(updatedUserAccount);
+        accountEventPublisher.publishProviderAccountSynced(updatedUserAccount, linkedConnection);
         return linkedConnection;
     }
 

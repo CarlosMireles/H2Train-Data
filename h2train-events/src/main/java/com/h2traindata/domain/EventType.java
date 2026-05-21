@@ -1,6 +1,8 @@
 package com.h2traindata.domain;
 
 public enum EventType {
+    USER_ACCOUNT(false, "user_account"),
+    ACCOUNT_SYNC(false, "account_sync"),
     USER_STATE(false, "user_state"),
     ACTIVITY(true, "activity"),
     PHYSIOLOGICAL(false, "physiological"),

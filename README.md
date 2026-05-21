@@ -26,6 +26,7 @@ The daemon depends on the event contracts module. The Kafka adapter depends on t
 - Persist connected accounts, sync preferences, and per-event sync state in a local H2 database
 - Sync provider events through event collectors
 - Collect provider events using a shared ontology grouped as `USER_STATE`, `ACTIVITY`, `PHYSIOLOGICAL`, `BODY_COMPOSITION`, and `HEALTH`
+- Publish internal H2Train account events for user registration/login and provider-account synchronization
 - Publish collected events through an `EventPublisher` port, currently backed by a logging adapter
 - Consume bus events through the datalake ingestion service and persist them to a simple local datalake
 - Poll due connections on a scheduler and reuse the stored sync cursor
@@ -49,6 +50,10 @@ The code is structured around clean ports and provider adapters so new sources s
 - `PHYSIOLOGICAL`: daily events such as `Steps`, `Distance`, `CaloriesBurned`, and `HeartRate`
 - `BODY_COMPOSITION`: snapshot events such as `BodyComposition` and `Nutrition`
 - `HEALTH`: snapshot events such as `Sleep`, `BloodGlucose`, `Electrocardiogram`, and `AnomalyDetected`
+- `USER_ACCOUNT`: internal H2Train account events such as `user_registered` and `user_logged_in`
+- `ACCOUNT_SYNC`: internal H2Train account-linking events such as `provider_account_synced`
+
+Internal H2Train events use `providerId=h2train` so they share the same bus envelope and datalake layout as provider events.
 - `BaseEvent`: shared base event with `timestamp`, `sourceSystem`, and `athleteId`
 - Every normalized event exposes those base fields directly in the event root:
   - `timestamp`: event timestamp
@@ -211,6 +216,8 @@ Example event path:
 
 ```text
 datalake/events/strava/ACTIVITY/events.jsonl
+datalake/events/h2train/USER_ACCOUNT/events.jsonl
+datalake/events/h2train/ACCOUNT_SYNC/events.jsonl
 ```
 
 If an event cannot be parsed, the consumer writes the original payload plus error metadata to `datalake/dead-letter`.

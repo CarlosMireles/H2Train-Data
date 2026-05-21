@@ -2,6 +2,7 @@ package com.h2traindata.application.usecase;
 
 import com.h2traindata.application.exception.DuplicateUserAccountException;
 import com.h2traindata.application.port.out.UserAccountRepository;
+import com.h2traindata.application.service.AccountEventPublisher;
 import com.h2traindata.application.service.PasswordHashService;
 import com.h2traindata.domain.InternalUserAccount;
 import java.time.Instant;
@@ -18,11 +19,14 @@ public class RegisterUserAccountUseCase {
 
     private final UserAccountRepository userAccountRepository;
     private final PasswordHashService passwordHashService;
+    private final AccountEventPublisher accountEventPublisher;
 
     public RegisterUserAccountUseCase(UserAccountRepository userAccountRepository,
-                                      PasswordHashService passwordHashService) {
+                                      PasswordHashService passwordHashService,
+                                      AccountEventPublisher accountEventPublisher) {
         this.userAccountRepository = userAccountRepository;
         this.passwordHashService = passwordHashService;
+        this.accountEventPublisher = accountEventPublisher;
     }
 
     public InternalUserAccount execute(String username, String email, String password) {
@@ -39,7 +43,7 @@ public class RegisterUserAccountUseCase {
                     throw new DuplicateUserAccountException("email");
                 });
 
-        return userAccountRepository.save(new InternalUserAccount(
+        InternalUserAccount userAccount = userAccountRepository.save(new InternalUserAccount(
                 UUID.randomUUID().toString(),
                 normalizedEmail,
                 normalizedUsername,
@@ -47,6 +51,8 @@ public class RegisterUserAccountUseCase {
                 Set.of(),
                 Instant.now()
         ));
+        accountEventPublisher.publishUserRegistered(userAccount, "password");
+        return userAccount;
     }
 
     private String required(String fieldName, String value) {

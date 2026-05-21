@@ -1,6 +1,7 @@
 package com.h2traindata.application.usecase;
 
 import com.h2traindata.application.port.out.UserAccountRepository;
+import com.h2traindata.application.service.AccountEventPublisher;
 import com.h2traindata.domain.InternalUserAccount;
 import java.time.Instant;
 import java.util.Locale;
@@ -13,22 +14,33 @@ import org.springframework.util.StringUtils;
 public class AuthenticateGoogleUserUseCase {
 
     private final UserAccountRepository userAccountRepository;
+    private final AccountEventPublisher accountEventPublisher;
 
-    public AuthenticateGoogleUserUseCase(UserAccountRepository userAccountRepository) {
+    public AuthenticateGoogleUserUseCase(UserAccountRepository userAccountRepository,
+                                         AccountEventPublisher accountEventPublisher) {
         this.userAccountRepository = userAccountRepository;
+        this.accountEventPublisher = accountEventPublisher;
     }
 
     public InternalUserAccount execute(String email, String displayName) {
         String normalizedEmail = normalizeEmail(email);
         return userAccountRepository.findByEmail(normalizedEmail)
-                .orElseGet(() -> userAccountRepository.save(new InternalUserAccount(
-                        UUID.randomUUID().toString(),
-                        normalizedEmail,
-                        uniqueUsername(normalizedEmail, displayName),
-                        null,
-                        Set.of(),
-                        Instant.now()
-                )));
+                .map(existingUserAccount -> {
+                    accountEventPublisher.publishUserLoggedIn(existingUserAccount, "google");
+                    return existingUserAccount;
+                })
+                .orElseGet(() -> {
+                    InternalUserAccount userAccount = userAccountRepository.save(new InternalUserAccount(
+                            UUID.randomUUID().toString(),
+                            normalizedEmail,
+                            uniqueUsername(normalizedEmail, displayName),
+                            null,
+                            Set.of(),
+                            Instant.now()
+                    ));
+                    accountEventPublisher.publishUserRegistered(userAccount, "google");
+                    return userAccount;
+                });
     }
 
     private String normalizeEmail(String email) {

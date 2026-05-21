@@ -10,6 +10,7 @@ import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.port.out.ProviderConnector;
 import com.h2traindata.application.port.out.ProviderEventCollector;
 import com.h2traindata.application.port.out.UserAccountRepository;
+import com.h2traindata.application.service.AccountEventPublisher;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.domain.AthleteProfile;
 import com.h2traindata.domain.EventType;
@@ -27,6 +28,7 @@ class HandleAuthorizationCallbackUseCaseTest {
     private final ProviderEventCollector collector = Mockito.mock(ProviderEventCollector.class);
     private final ConnectionRepository connectionRepository = Mockito.mock(ConnectionRepository.class);
     private final UserAccountRepository userAccountRepository = Mockito.mock(UserAccountRepository.class);
+    private final AccountEventPublisher accountEventPublisher = Mockito.mock(AccountEventPublisher.class);
 
     @Test
     void linksNewProviderConnectionToExistingInternalUser() {
@@ -38,7 +40,8 @@ class HandleAuthorizationCallbackUseCaseTest {
         HandleAuthorizationCallbackUseCase useCase = new HandleAuthorizationCallbackUseCase(
                 providerRegistry,
                 connectionRepository,
-                userAccountRepository
+                userAccountRepository,
+                accountEventPublisher
         );
 
         ProviderConnection providerConnection = new ProviderConnection(
@@ -56,6 +59,10 @@ class HandleAuthorizationCallbackUseCaseTest {
 
         assertEquals("internal-user-1", linkedConnection.userId());
         verify(connectionRepository).save(linkedConnection);
+        verify(accountEventPublisher).publishProviderAccountSynced(
+                new InternalUserAccount("internal-user-1", Instant.parse("2026-04-01T10:00:00Z")).withProvider("fitbit"),
+                linkedConnection
+        );
     }
 
     @Test
@@ -68,7 +75,8 @@ class HandleAuthorizationCallbackUseCaseTest {
         HandleAuthorizationCallbackUseCase useCase = new HandleAuthorizationCallbackUseCase(
                 providerRegistry,
                 connectionRepository,
-                userAccountRepository
+                userAccountRepository,
+                accountEventPublisher
         );
 
         ProviderConnection providerConnection = new ProviderConnection(
