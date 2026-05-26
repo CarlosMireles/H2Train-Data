@@ -12,6 +12,7 @@ import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.SyncCursor;
 import com.h2traindata.domain.SyncState;
+import com.h2traindata.privacy.SensitiveDataAnonymizer;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
 
@@ -22,15 +23,18 @@ public class SyncProviderEventsUseCase {
     private final ConnectionRepository connectionRepository;
     private final SyncStateRepository syncStateRepository;
     private final EventPublisher eventPublisher;
+    private final SensitiveDataAnonymizer sensitiveDataAnonymizer;
 
     public SyncProviderEventsUseCase(ProviderCatalog providerCatalog,
                                      ConnectionRepository connectionRepository,
                                      SyncStateRepository syncStateRepository,
-                                     EventPublisher eventPublisher) {
+                                     EventPublisher eventPublisher,
+                                     SensitiveDataAnonymizer sensitiveDataAnonymizer) {
         this.providerCatalog = providerCatalog;
         this.connectionRepository = connectionRepository;
         this.syncStateRepository = syncStateRepository;
         this.eventPublisher = eventPublisher;
+        this.sensitiveDataAnonymizer = sensitiveDataAnonymizer;
     }
 
     public EventBatch execute(String providerId, String athleteId, EventType eventType, SyncCursor cursor) {
@@ -45,6 +49,7 @@ public class SyncProviderEventsUseCase {
         EventBatch batch = providerCatalog.collector(providerId, eventType).collect(activeConnection, effectiveCursor);
         eventPublisher.publishAll(batch.events().stream()
                 .map(event -> new EventPublication(activeConnection.userId(), event))
+                .map(sensitiveDataAnonymizer::anonymizePublication)
                 .toList());
         Instant syncedAt = Instant.now();
         SyncState updatedSyncState = syncState.withSuccessfulSync(batch.nextCursor(), syncedAt);

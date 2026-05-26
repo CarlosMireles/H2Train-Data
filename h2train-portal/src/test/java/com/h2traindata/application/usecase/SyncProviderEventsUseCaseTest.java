@@ -22,6 +22,7 @@ import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
 import com.h2traindata.domain.SyncCursor;
 import com.h2traindata.domain.SyncState;
+import com.h2traindata.privacy.RuleBasedSensitiveDataAnonymizer;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ class SyncProviderEventsUseCaseTest {
     private final ConnectionRepository connectionRepository = Mockito.mock(ConnectionRepository.class);
     private final SyncStateRepository syncStateRepository = Mockito.mock(SyncStateRepository.class);
     private final EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
+    private final RuleBasedSensitiveDataAnonymizer sensitiveDataAnonymizer = new RuleBasedSensitiveDataAnonymizer();
 
     @Test
     void syncsStoredConnectionAndReturnsCollectedBatch() {
@@ -44,7 +46,13 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
+                new SyncProviderEventsUseCase(
+                        providerRegistry,
+                        connectionRepository,
+                        syncStateRepository,
+                        eventPublisher,
+                        sensitiveDataAnonymizer
+                );
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -80,7 +88,9 @@ class SyncProviderEventsUseCaseTest {
         EventBatch result = useCase.execute("strava", "7", EventType.ACTIVITY, null);
 
         assertEquals(1, result.events().size());
-        verify(eventPublisher).publishAll(List.of(new EventPublication("internal-user-1", event)));
+        verify(eventPublisher).publishAll(List.of(sensitiveDataAnonymizer.anonymizePublication(
+                new EventPublication("internal-user-1", event)
+        )));
         verify(connectionRepository).save(argThat(savedConnection ->
                 savedConnection.lastSyncedAt() != null && savedConnection.lastSyncCursor() == null
         ));
@@ -94,7 +104,13 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
+                new SyncProviderEventsUseCase(
+                        providerRegistry,
+                        connectionRepository,
+                        syncStateRepository,
+                        eventPublisher,
+                        sensitiveDataAnonymizer
+                );
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -136,7 +152,13 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
+                new SyncProviderEventsUseCase(
+                        providerRegistry,
+                        connectionRepository,
+                        syncStateRepository,
+                        eventPublisher,
+                        sensitiveDataAnonymizer
+                );
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",
@@ -181,7 +203,13 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
+                new SyncProviderEventsUseCase(
+                        providerRegistry,
+                        connectionRepository,
+                        syncStateRepository,
+                        eventPublisher,
+                        sensitiveDataAnonymizer
+                );
 
         ProviderConnection connection = new ProviderConnection(
                 "fitbit",
@@ -216,7 +244,13 @@ class SyncProviderEventsUseCaseTest {
 
         ProviderRegistry providerRegistry = new ProviderRegistry(List.of(connector), List.of(collector));
         SyncProviderEventsUseCase useCase =
-                new SyncProviderEventsUseCase(providerRegistry, connectionRepository, syncStateRepository, eventPublisher);
+                new SyncProviderEventsUseCase(
+                        providerRegistry,
+                        connectionRepository,
+                        syncStateRepository,
+                        eventPublisher,
+                        sensitiveDataAnonymizer
+                );
 
         ProviderConnection connection = new ProviderConnection(
                 "strava",

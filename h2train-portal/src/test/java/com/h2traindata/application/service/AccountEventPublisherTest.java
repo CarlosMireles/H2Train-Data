@@ -10,6 +10,7 @@ import com.h2traindata.domain.EventPublication;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.privacy.RuleBasedSensitiveDataAnonymizer;
 import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,10 @@ import org.mockito.Mockito;
 class AccountEventPublisherTest {
 
     private final EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
-    private final AccountEventPublisher accountEventPublisher = new AccountEventPublisher(eventPublisher);
+    private final AccountEventPublisher accountEventPublisher = new AccountEventPublisher(
+            eventPublisher,
+            new RuleBasedSensitiveDataAnonymizer()
+    );
 
     @Test
     void publishesUserAccountEventForRegistrations() {
@@ -40,6 +44,8 @@ class AccountEventPublisherTest {
         assertEquals(EventType.USER_ACCOUNT, publication.event().eventType());
         assertEquals("user_registered", publication.event().eventName());
         assertEquals("internal-user-1", publication.event().field("accountId"));
+        assertEquals(RuleBasedSensitiveDataAnonymizer.ANONYMIZED_VALUE, publication.event().field("email"));
+        assertEquals(RuleBasedSensitiveDataAnonymizer.ANONYMIZED_VALUE, publication.event().field("username"));
         assertEquals("password", publication.event().field("authProvider"));
         assertNotNull(publication.event().eventId());
     }
@@ -70,7 +76,8 @@ class AccountEventPublisherTest {
         assertEquals(EventType.ACCOUNT_SYNC, publication.event().eventType());
         assertEquals("provider_account_synced", publication.event().eventName());
         assertEquals("strava", publication.event().field("linkedProviderId"));
-        assertEquals("athlete-7", publication.event().field("providerAthleteId"));
+        assertEquals(RuleBasedSensitiveDataAnonymizer.ANONYMIZED_VALUE, publication.event().field("providerAthleteId"));
+        assertEquals(RuleBasedSensitiveDataAnonymizer.ANONYMIZED_VALUE, publication.event().field("providerAthleteUsername"));
     }
 
     private EventPublication capturedPublication() {

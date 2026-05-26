@@ -6,6 +6,7 @@ import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.domain.ProviderConnection;
 import com.h2traindata.domain.ProviderEvent;
+import com.h2traindata.privacy.SensitiveDataAnonymizer;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,9 +23,12 @@ public class AccountEventPublisher {
     private static final String SOURCE_SYSTEM = "h2train";
 
     private final EventPublisher eventPublisher;
+    private final SensitiveDataAnonymizer sensitiveDataAnonymizer;
 
-    public AccountEventPublisher(EventPublisher eventPublisher) {
+    public AccountEventPublisher(EventPublisher eventPublisher,
+                                 SensitiveDataAnonymizer sensitiveDataAnonymizer) {
         this.eventPublisher = eventPublisher;
+        this.sensitiveDataAnonymizer = sensitiveDataAnonymizer;
     }
 
     public void publishUserRegistered(InternalUserAccount userAccount, String authProvider) {
@@ -80,7 +84,7 @@ public class AccountEventPublisher {
 
     private void publish(String userId, ProviderEvent event) {
         try {
-            eventPublisher.publish(new EventPublication(userId, event));
+            eventPublisher.publish(sensitiveDataAnonymizer.anonymizePublication(new EventPublication(userId, event)));
         } catch (RuntimeException exception) {
             log.warn(
                     "Account event publication failed userId={} eventType={} eventName={}",

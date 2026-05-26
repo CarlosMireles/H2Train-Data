@@ -11,6 +11,8 @@ This repository is organized as a Maven multi-module project where each module m
 
 The bus module owns both the stable event/bus contracts and the current Kafka adapter. Core application code still depends on bus interfaces such as `EventPublisher` and `BusMessageHandler`, so another transport can be added inside the Bus component without changing Portal, Datalake, or Data App use cases. The datalake module exposes a `BusMessageHandler` and keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code. The data app module is intentionally contract-only for now, so the future API can consume bus messages, replay the datalake, and update datamarts without binding its core to Kafka, H2, or the local filesystem.
 
+Event payloads are anonymized before publication. Personal fields such as email, username, first name, last name, full name, display name, and provider athlete username are replaced with `[ANONYMIZED]`; credentials and token-like fields are replaced with `[REDACTED]`.
+
 ## Current scope
 
 - Register and sign in to an internal H2Train account with username, email, and password
