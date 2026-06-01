@@ -1,4 +1,4 @@
-package com.h2traindata.application.service;
+package com.h2traindata.daemon;
 
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.port.out.ConnectionRepository;

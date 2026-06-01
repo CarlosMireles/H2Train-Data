@@ -46,3 +46,4 @@ data/**
 !data/
 !data/.gitkeep
 h2train-portal/data/**
+h2train-daemon/data/**

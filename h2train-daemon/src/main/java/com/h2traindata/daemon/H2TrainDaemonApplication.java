@@ -1,25 +1,28 @@
-package com.h2traindata;
+package com.h2traindata.daemon;
 
 import com.h2traindata.infrastructure.config.ProviderHttpClientProperties;
 import com.h2traindata.infrastructure.config.SyncProperties;
 import com.h2traindata.infrastructure.provider.fitbit.config.FitbitProperties;
 import com.h2traindata.infrastructure.provider.strava.config.StravaProperties;
-import com.h2traindata.web.google.GoogleAuthProperties;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.h2traindata")
+@EnableScheduling
 @EnableConfigurationProperties({
         StravaProperties.class,
         FitbitProperties.class,
         SyncProperties.class,
-        ProviderHttpClientProperties.class,
-        GoogleAuthProperties.class
+        ProviderHttpClientProperties.class
 })
-public class H2TrainPortalApplication {
+public class H2TrainDaemonApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(H2TrainPortalApplication.class, args);
+        SpringApplication application = new SpringApplication(H2TrainDaemonApplication.class);
+        application.setWebApplicationType(WebApplicationType.NONE);
+        application.run(args);
     }
 }

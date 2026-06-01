@@ -5,11 +5,13 @@ This repository is organized as a Maven multi-module project where each module m
 ## Modules
 
 - `h2train-bus`: event contracts, bus ports, incoming message contracts, and Kafka adapters
+- `h2train-provider-sync`: shared provider connectors, sync use cases, repositories, schema, and provider HTTP configuration
+- `h2train-daemon`: Spring Boot background worker that polls due provider connections and publishes collected events
 - `h2train-datalake`: bus event ingester that writes events to the local datalake as JSON Lines
 - `h2train-data-app`: initial application contracts for real-time projections, datamarts, checkpoints, and datalake reads
-- `h2train-portal`: Spring Boot web application, portal UI, provider integrations, account/session logic, sync scheduling, persistence, and static assets
+- `h2train-portal`: Spring Boot web application, portal UI, account/session logic, OAuth callbacks, sync settings, and static assets
 
-The bus module owns both the stable event/bus contracts and the current Kafka adapter. Core application code still depends on bus interfaces such as `EventPublisher` and `BusMessageHandler`, so another transport can be added inside the Bus component without changing Portal, Datalake, or Data App use cases. The datalake module exposes a `BusMessageHandler` and keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code. The data app module is intentionally contract-only for now, so the future API can consume bus messages, replay the datalake, and update datamarts without binding its core to Kafka, H2, or the local filesystem.
+The bus module owns both the stable event/bus contracts and the current Kafka adapter. Core application code still depends on bus interfaces such as `EventPublisher` and `BusMessageHandler`, so another transport can be added inside the Bus component without changing Portal, Daemon, Datalake, or Data App use cases. The provider sync module is a shared library used by the portal and daemon; the portal owns user-facing OAuth/account workflows, while the daemon owns scheduled provider synchronization. The datalake module exposes a `BusMessageHandler` and keeps parsing, writing, and dead-letter handling behind bus-agnostic ingestion code. The data app module is intentionally contract-only for now, so the future API can consume bus messages, replay the datalake, and update datamarts without binding its core to Kafka, H2, or the local filesystem.
 
 Event payloads are anonymized before publication. Personal fields such as email, username, first name, last name, full name, display name, and provider athlete username are replaced with `[ANONYMIZED]`; credentials and token-like fields are replaced with `[REDACTED]`.
 
@@ -30,7 +32,7 @@ Event payloads are anonymized before publication. Personal fields such as email,
 - Publish internal H2Train account events for user registration/login and provider-account synchronization
 - Publish collected events through an `EventPublisher` port, currently backed by a logging adapter
 - Consume bus events through the datalake ingestion service and persist them to a simple local datalake
-- Poll due connections on a scheduler and reuse the stored sync cursor
+- Run scheduled provider synchronization in `h2train-daemon`, reusing stored sync cursors
 - Stop after event collection, returning batches to the caller and updating sync state
 
 The code is structured around clean ports and provider adapters so new sources such as Garmin or Polar can be added without changing the core use cases. Event collection is now modeled generically, so the system can grow beyond activities. Replaceable concerns such as password hashing, provider catalogs, external identity login, authenticated sessions, bus publishing/consumption, and datalake sinks are behind interfaces.
@@ -78,19 +80,20 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `GOOGLE_CLIENT_ID` (required only when Google login is enabled)
 - `GOOGLE_CLIENT_SECRET` (required only when Google login is enabled)
 - `GOOGLE_REDIRECT_URI` (optional, default `http://localhost:8080/auth/google/callback`)
+- `SYNC_POLL_INTERVAL_MS` (optional, default `60000`; used by `h2train-daemon`)
 - `SYNC_CONNECTION_PARALLELISM` (optional, default `4`)
 - `SYNC_ACTIVITY_PARALLELISM` (optional, default `2`)
 - `SYNC_METRICS_PARALLELISM` (optional, default `2`)
 - `PROVIDER_HTTP_CONNECT_TIMEOUT` (optional, default `5s`)
 - `PROVIDER_HTTP_READ_TIMEOUT` (optional, default `30s`)
 - `APP_PERSISTENCE_TYPE` (optional, default `jdbc`; use `memory` for non-persistent repositories)
-- `H2TRAIN_DB_URL` (optional, default `jdbc:h2:file:./data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false`)
+- `H2TRAIN_DB_URL` (optional, default `jdbc:h2:file:./data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false` when running the portal or daemon with Maven)
 - `H2TRAIN_DB_USERNAME` (optional, default `sa`)
 - `H2TRAIN_DB_PASSWORD` (optional, default empty)
 - `APP_BUS_TYPE` (optional, default `logging`; use `kafka` to publish to Kafka)
 - `KAFKA_BOOTSTRAP_SERVERS` (optional, default `localhost:9092`)
 - `KAFKA_TOPIC` (optional, default `h2train.events.v1`)
-- `KAFKA_CLIENT_ID` (optional, default `h2train-portal`)
+- `KAFKA_CLIENT_ID` (optional, default `h2train-portal` for the portal and `h2train-daemon` for the daemon)
 - `KAFKA_TOPIC_PARTITIONS` (optional, default `3`)
 - `KAFKA_TOPIC_REPLICATION_FACTOR` (optional, default `1`)
 - `KAFKA_REQUEST_TIMEOUT` (optional, default `10s`)
@@ -107,23 +110,25 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 The backend now fails at startup if `STRAVA_CLIENT_ID` or `STRAVA_CLIENT_SECRET` are missing.
 Set `FITBIT_ENABLED=true` to register the Fitbit provider. Fitbit remains disabled unless that flag is enabled.
 Strava user-state snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
-Set `GOOGLE_LOGIN_ENABLED=true` and configure the Google OAuth client values to show "Continue with Google" on the login and registration pages.
+Set `GOOGLE_LOGIN_ENABLED=true` and configure the Google OAuth client values to show "Continue with Google" on the login and registration pages. Google login is only used by `h2train-portal`.
 
 ## Persistence
 
-By default, the portal stores internal user accounts, connected provider accounts, user sync preferences, and sync cursors in a local H2 file database. When running with `mvn -pl h2train-portal -am spring-boot:run`, Maven starts the app from the `h2train-portal` module directory, so the default local database is created at:
+By default, the portal and daemon share a local H2 file database for internal user accounts, connected provider accounts, user sync preferences, and sync cursors. The Maven Spring Boot plugin starts both executable modules from the repository root, so the default local database is created at:
 
 ```text
-h2train-portal/data/h2train.mv.db
+data/h2train.mv.db
 ```
 
-This means connected Strava/Fitbit accounts and their sync settings survive application restarts. The schema is initialized from `h2train-portal/src/main/resources/schema.sql`.
+This means connected Strava/Fitbit accounts and their sync settings survive application restarts and are visible to both `h2train-portal` and `h2train-daemon`. The schema is initialized from `h2train-provider-sync/src/main/resources/schema.sql`.
 
-To force a repository-root database path instead:
+To force a specific database path:
 
 ```powershell
-$env:H2TRAIN_DB_URL="jdbc:h2:file:../data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false"
+$env:H2TRAIN_DB_URL="jdbc:h2:file:./data/h2train;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_UPPER=false"
 ```
+
+When running from IntelliJ instead of Maven, set the run configuration working directory to the repository root, or set `H2TRAIN_DB_URL` to an absolute path under the repository `data` directory.
 
 For temporary in-memory execution:
 
@@ -155,15 +160,34 @@ $env:APP_BUS_TYPE="logging"
 mvn -pl h2train-portal -am spring-boot:run
 ```
 
-To publish collected events to Kafka instead of logging them:
+Run the provider daemon in another terminal with the same provider, database, and bus environment:
+
+```powershell
+$env:STRAVA_CLIENT_ID="your-client-id"
+$env:STRAVA_CLIENT_SECRET="your-client-secret"
+$env:STRAVA_REDIRECT_URI="http://localhost:8080/auth/strava/callback"
+$env:FITBIT_ENABLED="true"
+$env:FITBIT_CLIENT_ID="your-fitbit-client-id"
+$env:FITBIT_CLIENT_SECRET="your-fitbit-client-secret"
+$env:FITBIT_REDIRECT_URI="http://localhost:8080/auth/fitbit/callback"
+$env:APP_BUS_TYPE="logging"
+mvn -pl h2train-daemon -am spring-boot:run
+```
+
+To publish collected events to Kafka instead of logging them, enable Kafka in both the portal and daemon terminals:
 
 ```powershell
 docker compose up -d kafka
 $env:APP_BUS_TYPE="kafka"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
 $env:KAFKA_TOPIC="h2train.events.v1"
+# Portal terminal:
 $env:KAFKA_CLIENT_ID="h2train-portal"
 mvn -pl h2train-portal -am spring-boot:run
+
+# Daemon terminal:
+$env:KAFKA_CLIENT_ID="h2train-daemon"
+mvn -pl h2train-daemon -am spring-boot:run
 ```
 
 The application creates the configured Kafka topic automatically when the Kafka bus is enabled. For local development, the topic uses 3 partitions and replication factor 1 by default.
@@ -179,14 +203,25 @@ docker exec -it h2train-kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstr
 
 The datalake writer runs as a separate Spring Boot application. Its core ingestion service accepts generic bus messages and appends valid event envelopes unchanged to JSON Lines files. Kafka is the current input adapter.
 
-Run the producer portal with Kafka enabled:
+Run event producers with Kafka enabled. The portal publishes account/linking events and manual sync events; the daemon publishes scheduled provider sync events.
 
 ```powershell
 docker compose up -d kafka
 $env:APP_BUS_TYPE="kafka"
 $env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
 $env:KAFKA_TOPIC="h2train.events.v1"
+$env:KAFKA_CLIENT_ID="h2train-portal"
 mvn -pl h2train-portal -am spring-boot:run
+```
+
+In another terminal:
+
+```powershell
+$env:APP_BUS_TYPE="kafka"
+$env:KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
+$env:KAFKA_TOPIC="h2train.events.v1"
+$env:KAFKA_CLIENT_ID="h2train-daemon"
+mvn -pl h2train-daemon -am spring-boot:run
 ```
 
 Run the datalake consumer in another terminal:
@@ -248,9 +283,12 @@ The provider authorization and sync setting endpoints require an authenticated i
 - `h2train-bus/src/main/java/com/h2traindata/domain`: shared event contracts such as `BaseEvent`, `EventType`, and `ProviderEvent`
 - `h2train-bus/src/main/java/com/h2traindata/bus`: bus ports such as `EventPublisher`, `BusMessageHandler`, and `IncomingBusMessage`
 - `h2train-bus/src/main/java/com/h2traindata/infrastructure/bus/kafka`: Kafka bus publisher and consumer adapters
-- `h2train-portal/src/main/java/com/h2traindata/application`: portal use cases, ports, account logic, sync orchestration, and provider authorization
-- `h2train-portal/src/main/java/com/h2traindata/domain`: portal domain model such as connections, cursors, sync state, and batches
-- `h2train-portal/src/main/java/com/h2traindata/infrastructure`: provider adapters, persistence, event publishing adapters, and portal configuration
+- `h2train-provider-sync/src/main/java/com/h2traindata/application`: shared provider ports, provider registry, and sync use cases
+- `h2train-provider-sync/src/main/java/com/h2traindata/domain`: shared account, connection, cursor, sync state, and batch domain model
+- `h2train-provider-sync/src/main/java/com/h2traindata/infrastructure`: provider adapters, persistence, provider HTTP config, sync executors, and logging publisher
+- `h2train-provider-sync/src/main/resources/schema.sql`: shared H2 schema for portal and daemon persistence
+- `h2train-daemon/src/main/java/com/h2traindata/daemon`: scheduler and daemon Spring Boot entrypoint
+- `h2train-portal/src/main/java/com/h2traindata/application`: portal account, authorization, identity, and sync settings use cases
 - `h2train-datalake/src/main/java/com/h2traindata/datalake`: bus-agnostic ingestion service, datalake sink ports, and JSONL file adapters
 - `h2train-data-app/src/main/java/com/h2traindata/dataapp/application/port`: contracts for event parsing, projections, datamart repositories, checkpoints, and datalake reads
 - `h2train-portal/src/main/java/com/h2traindata/web`: HTTP controllers, DTOs, mappers, and portal rendering
@@ -263,9 +301,11 @@ The provider authorization and sync setting endpoints require an authenticated i
 ## Structure at a glance
 
 - `h2train-bus` owns shared event contracts, bus abstractions, and Kafka-specific bus publishing/consumption
+- `h2train-provider-sync` owns provider connectors, sync use cases, shared persistence, and the database schema
+- `h2train-daemon` owns scheduled provider synchronization as a headless Spring Boot process
 - `h2train-datalake` owns bus event ingestion and local datalake writes
 - `h2train-data-app` owns future API projection contracts without a concrete runtime yet
-- `h2train-portal` owns the browser entrypoint, user-facing web endpoints, provider integrations, sync orchestration, and local persistence
+- `h2train-portal` owns the browser entrypoint, user-facing web endpoints, OAuth callbacks, account flows, and sync settings
 
 ## Next steps
 

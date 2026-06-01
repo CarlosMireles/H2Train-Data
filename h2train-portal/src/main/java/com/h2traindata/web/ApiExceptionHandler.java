@@ -5,6 +5,7 @@ import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.DuplicateUserAccountException;
 import com.h2traindata.application.exception.ForbiddenAccountAccessException;
 import com.h2traindata.application.exception.InvalidCredentialsException;
+import com.h2traindata.application.exception.ProviderConnectionAlreadyLinkedException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.exception.UnknownProviderException;
 import com.h2traindata.application.exception.UnsupportedEventTypeException;
@@ -39,6 +40,14 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(DuplicateUserAccountException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateUserAccount(DuplicateUserAccountException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(ProviderConnectionAlreadyLinkedException.class)
+    public ResponseEntity<Map<String, String>> handleProviderConnectionAlreadyLinked(
+            ProviderConnectionAlreadyLinkedException exception
+    ) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", exception.getMessage()));
     }

@@ -1,4 +1,4 @@
-package com.h2traindata.application.service;
+package com.h2traindata.daemon;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;

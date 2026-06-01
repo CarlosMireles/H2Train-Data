@@ -23,6 +23,8 @@
 
     <modules>
         <module>h2train-bus</module>
+        <module>h2train-provider-sync</module>
+        <module>h2train-daemon</module>
         <module>h2train-datalake</module>
         <module>h2train-data-app</module>
         <module>h2train-portal</module>
