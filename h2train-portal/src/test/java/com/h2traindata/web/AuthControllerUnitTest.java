@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.h2traindata.application.exception.ProviderConnectionAlreadyLinkedException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.service.ProviderRegistry;
 import com.h2traindata.application.usecase.GetProviderConnectionUseCase;
@@ -79,5 +80,27 @@ class AuthControllerUnitTest {
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         assertTrue(response.getHeaders().getLocation().toString().contains("connectedProvider=fitbit"));
         assertTrue(response.getHeaders().getLocation().toString().contains("athleteId=ABC123"));
+    }
+
+    @Test
+    void callbackRedirectsProviderAlreadyLinkedErrorsBackToPortal() {
+        when(handleAuthorizationCallbackUseCase.execute("strava", "oauth-code", "internal-user-2"))
+                .thenThrow(new ProviderConnectionAlreadyLinkedException("strava", "1143069702"));
+
+        MockHttpSession session = new MockHttpSession();
+        String state = providerOAuthStateStore.createState(session, "internal-user-2");
+
+        ResponseEntity<Void> response = controller.callback(
+                "strava",
+                "oauth-code",
+                state,
+                session
+        );
+
+        assertEquals(HttpStatus.FOUND, response.getStatusCode());
+        String location = response.getHeaders().getLocation().toString();
+        assertTrue(location.contains("providerError=already_linked"));
+        assertTrue(location.contains("provider=strava"));
+        assertTrue(location.contains("athleteId=1143069702"));
     }
 }

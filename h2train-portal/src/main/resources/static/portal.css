@@ -304,6 +304,66 @@ body::after {
     background: rgba(179, 38, 30, 0.08);
 }
 
+.portal-alert {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    margin: 18px 0;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(179, 38, 30, 0.18);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(179, 38, 30, 0.07)),
+        #ffffff;
+    box-shadow: 0 18px 34px rgba(179, 38, 30, 0.10);
+}
+
+.portal-alert-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    color: #ffffff;
+    background: linear-gradient(180deg, #d6453d, var(--error));
+    font-weight: 900;
+}
+
+.portal-alert-body {
+    display: grid;
+    gap: 5px;
+}
+
+.portal-alert-body strong {
+    color: var(--error);
+    font-size: 1rem;
+}
+
+.portal-alert-body p {
+    margin: 0;
+    color: var(--text);
+    line-height: 1.55;
+}
+
+.portal-alert-detail {
+    font-weight: 800;
+}
+
+.portal-alert-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 11px 15px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+    text-decoration: none;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .auth-alternate a {
     color: var(--accent-deep);
     font-weight: 800;
@@ -629,8 +689,10 @@ svg {
     .brand-lockup,
     .grid-header,
     .provider-top,
+    .portal-alert,
     .sync-controls-header,
     .sync-summary-row {
+        grid-template-columns: 1fr;
         flex-direction: column;
         align-items: start;
     }

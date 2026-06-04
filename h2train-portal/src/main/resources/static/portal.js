@@ -161,13 +161,26 @@ async function syncStoredConnections() {
 }
 
 async function processCallbackConnection() {
-    const params = new URLSearchParams(window.location.search);
-    const providerId = params.get("connectedProvider");
-    if (!providerId) {
+    const url = new URL(window.location.href);
+    const transientKeys = ["connectedProvider", "athleteId", "providerError", "provider"];
+    const hasTransientParam = transientKeys.some(function(key) {
+        return url.searchParams.has(key);
+    });
+
+    if (!hasTransientParam) {
         return;
     }
 
-    window.history.replaceState({}, document.title, window.location.pathname);
+    transientKeys.forEach(function(key) {
+        url.searchParams.delete(key);
+    });
+
+    const remainingQuery = url.searchParams.toString();
+    window.history.replaceState(
+        {},
+        document.title,
+        url.pathname + (remainingQuery ? "?" + remainingQuery : "") + url.hash
+    );
 }
 
 function currentConnection(providerId) {

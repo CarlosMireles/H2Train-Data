@@ -67,4 +67,27 @@ class PortalControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 5 hours")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 7 days")));
     }
+
+    @Test
+    void homeRendersProviderConnectionErrorsAsFriendlyAlert() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "internal-user-provider-error",
+                "provider-error@example.com",
+                "provider-error-user",
+                "hash",
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(get("/")
+                        .queryParam("providerError", "already_linked")
+                        .queryParam("provider", "strava")
+                        .queryParam("athleteId", "1143069702")
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-provider-error"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Strava account already linked")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Provider account 'strava/1143069702'")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("use a private window")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/auth/strava/login")));
+    }
 }

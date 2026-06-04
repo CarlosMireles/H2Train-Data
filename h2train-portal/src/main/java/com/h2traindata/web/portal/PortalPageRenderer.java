@@ -30,6 +30,13 @@ public class PortalPageRenderer {
     public String render(Collection<String> providerIds,
                          InternalUserAccount userAccount,
                          Collection<SyncSettingsResponse> connections) {
+        return render(providerIds, userAccount, connections, null);
+    }
+
+    public String render(Collection<String> providerIds,
+                         InternalUserAccount userAccount,
+                         Collection<SyncSettingsResponse> connections,
+                         PortalAlert alert) {
         String providerCards = providerIds.stream()
                 .sorted()
                 .map(descriptorFactory::create)
@@ -60,6 +67,7 @@ public class PortalPageRenderer {
                                 <button class="secondary-action" type="submit">Sign out</button>
                             </form>
                         </header>
+                        __PORTAL_ALERT__
                         <section class="hero">
                             <div class="brand-lockup">
                                 <img class="brand-logo" src="/h2train-logo.png" alt="H2Train logo">
@@ -95,7 +103,43 @@ public class PortalPageRenderer {
                 escape(accountId)
         )
                 .replace("__PROVIDER_CARDS__", providerCards)
+                .replace("__PORTAL_ALERT__", renderAlert(alert))
                 .replace("__BOOTSTRAP__", bootstrapJson(userAccount, connections));
+    }
+
+    private String renderAlert(PortalAlert alert) {
+        if (alert == null) {
+            return "";
+        }
+
+        String actionMarkup = alert.actionHref() == null || alert.actionHref().isBlank()
+                ? ""
+                : """
+                                <a class="portal-alert-action" href="%s">%s</a>
+                        """.formatted(escape(alert.actionHref()), escape(alert.actionText()));
+        String detailMarkup = alert.detail() == null || alert.detail().isBlank()
+                ? ""
+                : """
+                            <p class="portal-alert-detail">%s</p>
+                        """.formatted(escape(alert.detail()));
+
+        return """
+                        <section class="portal-alert" data-tone="%s" role="alert">
+                            <div class="portal-alert-icon" aria-hidden="true">!</div>
+                            <div class="portal-alert-body">
+                                <strong>%s</strong>
+                                <p>%s</p>
+                                %s
+                            </div>
+                            %s
+                        </section>
+                """.formatted(
+                escape(alert.tone()),
+                escape(alert.title()),
+                escape(alert.message()),
+                detailMarkup,
+                actionMarkup
+        );
     }
 
     private String renderProviderCard(ProviderPortalDescriptor descriptor) {
@@ -210,6 +254,16 @@ public class PortalPageRenderer {
             String email,
             String username,
             Set<String> providers
+    ) {
+    }
+
+    public record PortalAlert(
+            String tone,
+            String title,
+            String message,
+            String detail,
+            String actionHref,
+            String actionText
     ) {
     }
 }

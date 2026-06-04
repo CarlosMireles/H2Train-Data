@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,7 +41,10 @@ public class PortalController {
     }
 
     @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> home(HttpServletRequest request) {
+    public ResponseEntity<String> home(HttpServletRequest request,
+                                       @RequestParam(value = "providerError", required = false) String providerError,
+                                       @RequestParam(value = "provider", required = false) String provider,
+                                       @RequestParam(value = "athleteId", required = false) String athleteId) {
         return authenticatedUserContext.currentUserId(request)
                 .map(userId -> {
                     InternalUserAccount userAccount = getUserAccountUseCase.execute(userId);
@@ -49,7 +53,8 @@ public class PortalController {
                             userAccount,
                             connectionRepository.findByUserId(userId).stream()
                                     .map(syncSettingsMapper::toResponse)
-                                    .toList()
+                                    .toList(),
+                            providerAlert(providerError, provider, athleteId)
                     );
                     return ResponseEntity.ok()
                             .contentType(MediaType.TEXT_HTML)
@@ -58,5 +63,33 @@ public class PortalController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.FOUND)
                         .location(URI.create("/login"))
                         .build());
+    }
+
+    private PortalPageRenderer.PortalAlert providerAlert(String providerError, String provider, String athleteId) {
+        if (!"already_linked".equals(providerError)) {
+            return null;
+        }
+
+        String displayProvider = provider == null || provider.isBlank()
+                ? "provider"
+                : provider.substring(0, 1).toUpperCase() + provider.substring(1).toLowerCase();
+        String athleteDetail = athleteId == null || athleteId.isBlank()
+                ? ""
+                : "Technical detail: Provider account '%s/%s' is already linked to another H2Train user."
+                        .formatted(provider == null || provider.isBlank() ? "provider" : provider.toLowerCase(), athleteId);
+        String actionHref = provider == null || provider.isBlank()
+                ? null
+                : "/auth/" + provider.replaceAll("[^A-Za-z0-9._-]", "") + "/login";
+
+        return new PortalPageRenderer.PortalAlert(
+                "error",
+                displayProvider + " account already linked",
+                "This " + displayProvider + " account is already connected to another H2Train user. "
+                        + "Sign out of " + displayProvider + " in this browser, use a private window, or choose a different "
+                        + displayProvider + " account before trying again.",
+                athleteDetail,
+                actionHref,
+                "Try " + displayProvider + " again"
+        );
     }
 }

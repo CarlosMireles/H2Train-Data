@@ -1,7 +1,7 @@
 package com.h2traindata.web;
 
-import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.ForbiddenAccountAccessException;
+import com.h2traindata.application.exception.ProviderConnectionAlreadyLinkedException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.port.out.ProviderCatalog;
 import com.h2traindata.application.usecase.GetProviderConnectionUseCase;
@@ -99,9 +99,28 @@ public class AuthController {
                                          @RequestParam("code") String code,
                                          @RequestParam(value = "state", required = false) String state,
                                          HttpSession session) {
-        String userId = oAuthStateStore.consumeUserId(session, state)
-                .orElseThrow(AuthenticationRequiredException::new);
-        ProviderConnection connection = handleAuthorizationCallbackUseCase.execute(provider, code, userId);
+        String userId = oAuthStateStore.consumeUserId(session, state).orElse(null);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create("/login?error=provider_state"))
+                    .build();
+        }
+
+        ProviderConnection connection;
+        try {
+            connection = handleAuthorizationCallbackUseCase.execute(provider, code, userId);
+        } catch (ProviderConnectionAlreadyLinkedException exception) {
+            URI redirectUri = UriComponentsBuilder.fromPath("/")
+                    .queryParam("providerError", "already_linked")
+                    .queryParam("provider", exception.providerId())
+                    .queryParam("athleteId", exception.athleteId())
+                    .build()
+                    .toUri();
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(redirectUri)
+                    .build();
+        }
+
         authenticatedUserContext.loginUserId(session, connection.userId());
         try {
             syncAllProviderEventsUseCase.execute(provider, connection.athlete().id());

@@ -155,6 +155,7 @@ public class AuthPageRenderer {
             case "google_failed" -> "Google sign-in could not be completed.";
             case "google_state" -> "Google sign-in state was invalid. Start again.";
             case "session_required" -> "Sign in before connecting providers.";
+            case "provider_state" -> "Provider authorization expired or was opened from another session. Start the connection again.";
             default -> "The request could not be completed.";
         };
     }
