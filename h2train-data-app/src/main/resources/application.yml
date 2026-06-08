@@ -1,0 +1,15 @@
+app:
+  datalake:
+    root-path: ${DATALAKE_ROOT_PATH:datalake}
+    longitudinal-datamart-path: ${LONGITUDINAL_DATAMART_PATH:datamarts/longitudinal}
+  bus:
+    consumer:
+      type: ${APP_DATA_APP_BUS_TYPE:${APP_BUS_CONSUMER_TYPE:kafka}}
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+        topic: ${KAFKA_TOPIC:h2train.events.v1}
+        group-id: ${TIMESERIES_KAFKA_GROUP_ID:h2train-timeseries-projection}
+        client-id: ${TIMESERIES_KAFKA_CLIENT_ID:h2train-timeseries-projection}
+        auto-offset-reset: ${TIMESERIES_KAFKA_AUTO_OFFSET_RESET:earliest}
+  timeseries:
+    rebuild-on-startup: ${TIMESERIES_REBUILD_ON_STARTUP:false}
