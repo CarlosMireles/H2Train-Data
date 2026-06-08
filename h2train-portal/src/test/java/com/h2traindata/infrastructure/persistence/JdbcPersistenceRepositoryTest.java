@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.h2traindata.domain.AthleteProfile;
 import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.InternalUserAccount;
+import com.h2traindata.domain.PasswordResetToken;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.domain.RememberMeToken;
 import com.h2traindata.domain.SyncCursor;
 import com.h2traindata.domain.SyncInterval;
 import com.h2traindata.domain.SyncPreferences;
@@ -29,6 +31,10 @@ class JdbcPersistenceRepositoryTest {
     private final JdbcUserAccountRepository userAccountRepository = new JdbcUserAccountRepository(jdbcTemplate);
     private final JdbcConnectionRepository connectionRepository = new JdbcConnectionRepository(jdbcTemplate);
     private final JdbcSyncStateRepository syncStateRepository = new JdbcSyncStateRepository(jdbcTemplate);
+    private final JdbcPasswordResetTokenRepository passwordResetTokenRepository =
+            new JdbcPasswordResetTokenRepository(jdbcTemplate);
+    private final JdbcRememberMeTokenRepository rememberMeTokenRepository =
+            new JdbcRememberMeTokenRepository(jdbcTemplate);
 
     @AfterEach
     void shutdownDatabase() {
@@ -75,5 +81,47 @@ class JdbcPersistenceRepositoryTest {
         assertEquals("cursor-2", storedSyncState.lastCursor().value());
         assertTrue(connectionRepository.findAll().contains(storedConnection));
         assertTrue(userAccountRepository.findById("internal-user-1").isPresent());
+    }
+
+    @Test
+    void persistsPasswordResetTokens() {
+        PasswordResetToken token = new PasswordResetToken(
+                "token-hash",
+                "internal-user-1",
+                "runner@example.com",
+                Instant.parse("2026-06-08T10:30:00Z"),
+                Instant.parse("2026-06-08T10:00:00Z"),
+                null
+        );
+
+        passwordResetTokenRepository.save(token);
+        passwordResetTokenRepository.save(token.markUsed(Instant.parse("2026-06-08T10:05:00Z")));
+
+        PasswordResetToken stored = passwordResetTokenRepository.findByTokenHash("token-hash").orElseThrow();
+        assertEquals("internal-user-1", stored.userId());
+        assertEquals("runner@example.com", stored.email());
+        assertEquals(Instant.parse("2026-06-08T10:05:00Z"), stored.usedAt());
+    }
+
+    @Test
+    void persistsRememberMeTokens() {
+        RememberMeToken token = new RememberMeToken(
+                "remember-hash",
+                "internal-user-1",
+                Instant.parse("2026-07-08T10:00:00Z"),
+                Instant.parse("2026-06-08T10:00:00Z"),
+                Instant.parse("2026-06-08T10:00:00Z")
+        );
+
+        rememberMeTokenRepository.save(token);
+        rememberMeTokenRepository.save(token.markUsed(Instant.parse("2026-06-08T11:00:00Z")));
+
+        RememberMeToken stored = rememberMeTokenRepository.findByTokenHash("remember-hash").orElseThrow();
+        assertEquals("internal-user-1", stored.userId());
+        assertEquals(Instant.parse("2026-07-08T10:00:00Z"), stored.expiresAt());
+        assertEquals(Instant.parse("2026-06-08T11:00:00Z"), stored.lastUsedAt());
+
+        rememberMeTokenRepository.deleteByTokenHash("remember-hash");
+        assertTrue(rememberMeTokenRepository.findByTokenHash("remember-hash").isEmpty());
     }
 }

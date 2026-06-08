@@ -81,6 +81,15 @@ Only `ACTIVITY` uses a sync cursor, so snapshot categories do not overwrite the 
 - `GOOGLE_CLIENT_ID` (required only when Google login is enabled)
 - `GOOGLE_CLIENT_SECRET` (required only when Google login is enabled)
 - `GOOGLE_REDIRECT_URI` (optional, default `http://localhost:8080/auth/google/callback`)
+- `PASSWORD_RESET_EMAIL_ENABLED` (optional, default `false`; set `true` to send password recovery emails through SMTP)
+- `PASSWORD_RESET_EMAIL_FROM` (optional, default `no-reply@h2train.local`)
+- `PASSWORD_RESET_EMAIL_SUBJECT` (optional, default `Reset your H2Train password`)
+- `SPRING_MAIL_HOST` (required when `PASSWORD_RESET_EMAIL_ENABLED=true`)
+- `SPRING_MAIL_PORT` (optional, commonly `587` for STARTTLS)
+- `SPRING_MAIL_USERNAME` (required when your SMTP provider requires authentication)
+- `SPRING_MAIL_PASSWORD` (required when your SMTP provider requires authentication)
+- `SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH` (optional, commonly `true`)
+- `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE` (optional, commonly `true`)
 - `SYNC_POLL_INTERVAL_MS` (optional, default `60000`; used by `h2train-daemon`)
 - `SYNC_CONNECTION_PARALLELISM` (optional, default `4`)
 - `SYNC_ACTIVITY_PARALLELISM` (optional, default `2`)
@@ -118,6 +127,26 @@ The backend now fails at startup if `STRAVA_CLIENT_ID` or `STRAVA_CLIENT_SECRET`
 Set `FITBIT_ENABLED=true` to register the Fitbit provider. Fitbit remains disabled unless that flag is enabled.
 Strava user-state snapshots require `profile:read_all`. Fitbit body-related endpoints use the `weight` scope.
 Set `GOOGLE_LOGIN_ENABLED=true` and configure the Google OAuth client values to show "Continue with Google" on the login and registration pages. Google login is only used by `h2train-portal`.
+
+## Password recovery email
+
+The portal can send password recovery links through SMTP. By default, SMTP is disabled and recovery links are written to the application log for local development only.
+
+Enable real email delivery:
+
+```powershell
+$env:PASSWORD_RESET_EMAIL_ENABLED="true"
+$env:PASSWORD_RESET_EMAIL_FROM="no-reply@your-domain.test"
+$env:PASSWORD_RESET_EMAIL_SUBJECT="Reset your H2Train password"
+$env:SPRING_MAIL_HOST="smtp.your-provider.test"
+$env:SPRING_MAIL_PORT="587"
+$env:SPRING_MAIL_USERNAME="smtp-user"
+$env:SPRING_MAIL_PASSWORD="smtp-password"
+$env:SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH="true"
+$env:SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE="true"
+```
+
+When SMTP is enabled, password reset tokens are still stored only as hashes, expire after 30 minutes, and can be used once.
 
 ## Persistence
 
@@ -158,6 +187,15 @@ $env:GOOGLE_LOGIN_ENABLED="false"
 # $env:GOOGLE_CLIENT_ID="your-google-client-id"
 # $env:GOOGLE_CLIENT_SECRET="your-google-client-secret"
 # $env:GOOGLE_REDIRECT_URI="http://localhost:8080/auth/google/callback"
+# Optional real password recovery email:
+# $env:PASSWORD_RESET_EMAIL_ENABLED="true"
+# $env:PASSWORD_RESET_EMAIL_FROM="no-reply@your-domain.test"
+# $env:SPRING_MAIL_HOST="smtp.your-provider.test"
+# $env:SPRING_MAIL_PORT="587"
+# $env:SPRING_MAIL_USERNAME="smtp-user"
+# $env:SPRING_MAIL_PASSWORD="smtp-password"
+# $env:SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH="true"
+# $env:SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE="true"
 $env:SYNC_CONNECTION_PARALLELISM="4"
 $env:SYNC_ACTIVITY_PARALLELISM="2"
 $env:SYNC_METRICS_PARALLELISM="2"

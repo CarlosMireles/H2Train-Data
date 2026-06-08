@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.h2traindata.application.exception.AccountManagedExternallyException;
 import com.h2traindata.application.exception.InvalidCurrentPasswordException;
 import com.h2traindata.application.exception.PasswordConfirmationMismatchException;
 import com.h2traindata.application.exception.PasswordUnchangedException;
@@ -84,6 +85,25 @@ class ChangeUserPasswordUseCaseTest {
                 "current-password",
                 "current-password",
                 "current-password"
+        ));
+    }
+
+    @Test
+    void rejectsGoogleOnlyAccountsWithoutLocalCredentials() {
+        userAccountRepository.save(new InternalUserAccount(
+                "google-user",
+                "google@example.com",
+                "google-runner",
+                null,
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        assertThrows(AccountManagedExternallyException.class, () -> useCase.execute(
+                "google-user",
+                "ignored-password",
+                "next-password",
+                "next-password"
         ));
     }
 }

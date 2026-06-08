@@ -5,6 +5,7 @@ import com.h2traindata.application.port.out.ProviderCatalog;
 import com.h2traindata.application.usecase.GetUserAccountUseCase;
 import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.web.auth.AuthenticatedUserContext;
+import com.h2traindata.infrastructure.email.PasswordResetMailProperties;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import com.h2traindata.web.portal.PortalPageRenderer;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,19 +26,22 @@ public class PortalController {
     private final AuthenticatedUserContext authenticatedUserContext;
     private final SyncSettingsMapper syncSettingsMapper;
     private final PortalPageRenderer portalPageRenderer;
+    private final PasswordResetMailProperties passwordResetMailProperties;
 
     public PortalController(ProviderCatalog providerCatalog,
                             GetUserAccountUseCase getUserAccountUseCase,
                             ConnectionRepository connectionRepository,
                             AuthenticatedUserContext authenticatedUserContext,
                             SyncSettingsMapper syncSettingsMapper,
-                            PortalPageRenderer portalPageRenderer) {
+                            PortalPageRenderer portalPageRenderer,
+                            PasswordResetMailProperties passwordResetMailProperties) {
         this.providerCatalog = providerCatalog;
         this.getUserAccountUseCase = getUserAccountUseCase;
         this.connectionRepository = connectionRepository;
         this.authenticatedUserContext = authenticatedUserContext;
         this.syncSettingsMapper = syncSettingsMapper;
         this.portalPageRenderer = portalPageRenderer;
+        this.passwordResetMailProperties = passwordResetMailProperties;
     }
 
     @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -120,6 +124,20 @@ public class PortalController {
                     null
             );
         }
+        if ("password_reset_requested".equals(accountStatus)) {
+            return new PortalPageRenderer.PortalAlert(
+                    "success",
+                    "Recovery email requested",
+                    passwordResetMailProperties.isEnabled()
+                            ? "A password recovery link was sent to the email associated with your internal H2Train account."
+                            : "A password recovery link was generated for the email associated with your internal H2Train account.",
+                    passwordResetMailProperties.isEnabled()
+                            ? null
+                            : "Email delivery is disabled, so development mode wrote the recovery link to the application log.",
+                    null,
+                    null
+            );
+        }
         if (accountError == null || accountError.isBlank()) {
             return null;
         }
@@ -143,6 +161,7 @@ public class PortalController {
             case "password_mismatch" -> "The new password and confirmation password must match.";
             case "password_unchanged" -> "The new password must be different from your current password.";
             case "invalid_password" -> "Use a password with at least 8 characters.";
+            case "external_account_managed" -> "This account is managed through Google. Use Google to manage your email and password.";
             default -> "The account change could not be completed.";
         };
     }

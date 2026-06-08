@@ -4,6 +4,7 @@ import com.h2traindata.application.exception.EmailAlreadyInUseException;
 import com.h2traindata.application.exception.EmailConfirmationMismatchException;
 import com.h2traindata.application.exception.EmailUnchangedException;
 import com.h2traindata.application.exception.InvalidCurrentPasswordException;
+import com.h2traindata.application.exception.AccountManagedExternallyException;
 import com.h2traindata.application.exception.UserAccountNotFoundException;
 import com.h2traindata.application.port.out.PasswordHasher;
 import com.h2traindata.application.port.out.UserAccountRepository;
@@ -36,6 +37,9 @@ public class ChangeUserEmailUseCase {
                                        String currentPassword) {
         InternalUserAccount userAccount = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new UserAccountNotFoundException(userId));
+        if (!userAccount.hasLocalCredentials()) {
+            throw new AccountManagedExternallyException();
+        }
         String normalizedEmail = accountCredentialPolicy.normalizeEmail(newEmail);
         String normalizedConfirmation = accountCredentialPolicy.normalizeEmail(confirmNewEmail);
         if (!normalizedEmail.equals(normalizedConfirmation)) {

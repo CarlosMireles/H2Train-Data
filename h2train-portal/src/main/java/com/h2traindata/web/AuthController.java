@@ -159,6 +159,23 @@ public class AuthController {
         );
     }
 
+    @GetMapping("/{provider}/athletes/{athleteId}/sync")
+    public SyncEventsResponse syncAllEvents(@PathVariable String provider,
+                                            @PathVariable String athleteId,
+                                            HttpServletRequest request) {
+        ensureOwnedConnection(provider, athleteId, request);
+        int importedEvents = syncAllProviderEventsUseCase.execute(provider, athleteId).stream()
+                .mapToInt(batch -> batch.events().size())
+                .sum();
+        return new SyncEventsResponse(
+                provider,
+                athleteId,
+                "ALL",
+                importedEvents,
+                "Provider sync completed successfully"
+        );
+    }
+
     @GetMapping("/{provider}/athletes/{athleteId}/sync-settings")
     public SyncSettingsResponse getSyncSettings(@PathVariable String provider,
                                                 @PathVariable String athleteId,

@@ -28,6 +28,11 @@ app:
     connection-parallelism: ${SYNC_CONNECTION_PARALLELISM:4}
     activity-parallelism: ${SYNC_ACTIVITY_PARALLELISM:2}
     metrics-parallelism: ${SYNC_METRICS_PARALLELISM:2}
+  mail:
+    password-reset:
+      enabled: ${PASSWORD_RESET_EMAIL_ENABLED:false}
+      from: ${PASSWORD_RESET_EMAIL_FROM:no-reply@h2train.local}
+      subject: ${PASSWORD_RESET_EMAIL_SUBJECT:Reset your H2Train password}
   bus:
     type: ${APP_BUS_TYPE:logging}
     kafka:

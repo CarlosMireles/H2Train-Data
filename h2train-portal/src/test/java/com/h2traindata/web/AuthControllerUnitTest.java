@@ -15,15 +15,22 @@ import com.h2traindata.application.usecase.SyncAllProviderEventsUseCase;
 import com.h2traindata.application.usecase.SyncProviderEventsUseCase;
 import com.h2traindata.application.usecase.UpdateSyncPreferencesUseCase;
 import com.h2traindata.domain.AthleteProfile;
+import com.h2traindata.domain.EventBatch;
+import com.h2traindata.domain.EventType;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.domain.ProviderEvent;
 import com.h2traindata.web.auth.AuthenticatedSession;
 import com.h2traindata.web.auth.ProviderOAuthStateStore;
+import com.h2traindata.web.dto.SyncEventsResponse;
 import com.h2traindata.web.mapper.SyncSettingsMapper;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 
 class AuthControllerUnitTest {
@@ -102,5 +109,52 @@ class AuthControllerUnitTest {
         assertTrue(location.contains("providerError=already_linked"));
         assertTrue(location.contains("provider=strava"));
         assertTrue(location.contains("athleteId=1143069702"));
+    }
+
+    @Test
+    void syncAllEventsRequiresOwnedConnectionAndReturnsImportedEventCount() {
+        ProviderConnection connection = new ProviderConnection(
+                "strava",
+                new AthleteProfile("7", "runner"),
+                "access-token",
+                "refresh-token",
+                Instant.now().plusSeconds(600)
+        ).withUserId("internal-user-3");
+        when(getProviderConnectionUseCase.execute("strava", "7")).thenReturn(connection);
+        when(syncAllProviderEventsUseCase.execute("strava", "7")).thenReturn(List.of(
+                new EventBatch("strava", "7", EventType.ACTIVITY, List.of(
+                        event("strava", "7", EventType.ACTIVITY, "Workout", "workout-1"),
+                        event("strava", "7", EventType.ACTIVITY, "Workout", "workout-2")
+                ), null),
+                new EventBatch("strava", "7", EventType.PHYSIOLOGICAL, List.of(
+                        event("strava", "7", EventType.PHYSIOLOGICAL, "Distance", "distance-1")
+                ), null)
+        ));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute(AuthenticatedSession.USER_ID_ATTRIBUTE, "internal-user-3");
+
+        SyncEventsResponse response = controller.syncAllEvents("strava", "7", request);
+
+        assertEquals("strava", response.provider());
+        assertEquals("7", response.athleteId());
+        assertEquals("ALL", response.eventType());
+        assertEquals(3, response.importedEvents());
+    }
+
+    private ProviderEvent event(String provider,
+                                String athleteId,
+                                EventType eventType,
+                                String eventName,
+                                String eventId) {
+        return new ProviderEvent(
+                provider,
+                athleteId,
+                eventType,
+                eventName,
+                eventId,
+                Instant.parse("2026-06-08T10:00:00Z"),
+                Map.of()
+        );
     }
 }

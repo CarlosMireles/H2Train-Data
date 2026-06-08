@@ -1,5 +1,6 @@
 package com.h2traindata.application.usecase;
 
+import com.h2traindata.application.exception.AccountManagedExternallyException;
 import com.h2traindata.application.exception.InvalidCurrentPasswordException;
 import com.h2traindata.application.exception.PasswordConfirmationMismatchException;
 import com.h2traindata.application.exception.PasswordUnchangedException;
@@ -35,6 +36,9 @@ public class ChangeUserPasswordUseCase {
                                        String confirmNewPassword) {
         InternalUserAccount userAccount = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new UserAccountNotFoundException(userId));
+        if (!userAccount.hasLocalCredentials()) {
+            throw new AccountManagedExternallyException();
+        }
         if (!passwordHasher.matches(currentPassword, userAccount.passwordHash())) {
             throw new InvalidCurrentPasswordException();
         }

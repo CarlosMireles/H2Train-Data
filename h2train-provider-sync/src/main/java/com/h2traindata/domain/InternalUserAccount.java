@@ -41,4 +41,8 @@ public record InternalUserAccount(
     public InternalUserAccount withPasswordHash(String passwordHash) {
         return new InternalUserAccount(id, email, username, passwordHash, providerIds, createdAt);
     }
+
+    public boolean hasLocalCredentials() {
+        return passwordHash != null && !passwordHash.isBlank();
+    }
 }

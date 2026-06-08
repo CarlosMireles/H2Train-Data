@@ -46,3 +46,26 @@ CREATE TABLE IF NOT EXISTS sync_states (
     updated_at VARCHAR(64) NOT NULL,
     PRIMARY KEY (provider_id, athlete_id, event_type)
 );
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash VARCHAR(128) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    email VARCHAR(320) NOT NULL,
+    expires_at VARCHAR(64) NOT NULL,
+    created_at VARCHAR(64) NOT NULL,
+    used_at VARCHAR(64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+    ON password_reset_tokens (user_id);
+
+CREATE TABLE IF NOT EXISTS remember_me_tokens (
+    token_hash VARCHAR(128) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    expires_at VARCHAR(64) NOT NULL,
+    created_at VARCHAR(64) NOT NULL,
+    last_used_at VARCHAR(64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_remember_me_tokens_user_id
+    ON remember_me_tokens (user_id);
