@@ -1,5 +1,6 @@
 package com.h2traindata.infrastructure.provider.common;
 
+import com.h2traindata.application.exception.ProviderAuthorizationException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import java.util.function.Supplier;
 import org.springframework.http.HttpHeaders;
@@ -16,6 +17,13 @@ public final class ProviderRequestSupport {
             return request.get();
         } catch (HttpClientErrorException.TooManyRequests exception) {
             throw new ProviderRateLimitException(providerId, operation, retryAfterSeconds(exception.getResponseHeaders()), exception);
+        } catch (HttpClientErrorException.Unauthorized exception) {
+            throw new ProviderAuthorizationException(providerId, operation);
+        } catch (HttpClientErrorException.BadRequest exception) {
+            if (isInvalidGrant(exception)) {
+                throw new ProviderAuthorizationException(providerId, operation);
+            }
+            throw exception;
         }
     }
 
@@ -41,5 +49,10 @@ public final class ProviderRequestSupport {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private static boolean isInvalidGrant(HttpClientErrorException exception) {
+        String body = exception.getResponseBodyAsString();
+        return body != null && body.contains("invalid_grant");
     }
 }

@@ -133,4 +133,96 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.username").value("me-runner"))
                 .andExpect(jsonPath("$.providers[0]").value("strava"));
     }
+
+    @Test
+    void changeEmailUpdatesAuthenticatedInternalAccount() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "email-change-user",
+                "email-change@example.com",
+                "email-change-runner",
+                passwordHashService.hash("current-password"),
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(post("/account/email")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "email-change-user")
+                        .param("newEmail", "updated-email@example.com")
+                        .param("confirmNewEmail", "updated-email@example.com")
+                        .param("currentPassword", "current-password"))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "/?accountStatus=email_changed"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "updated-email@example.com",
+                userAccountRepository.findById("email-change-user").orElseThrow().email()
+        );
+    }
+
+    @Test
+    void changeEmailRejectsInvalidCurrentPassword() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "email-change-invalid-password-user",
+                "email-change-invalid@example.com",
+                "email-change-invalid-runner",
+                passwordHashService.hash("current-password"),
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(post("/account/email")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "email-change-invalid-password-user")
+                        .param("newEmail", "updated-invalid@example.com")
+                        .param("confirmNewEmail", "updated-invalid@example.com")
+                        .param("currentPassword", "wrong-password"))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "/?accountError=invalid_current_password"));
+    }
+
+    @Test
+    void changePasswordUpdatesAuthenticatedInternalAccount() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "password-change-user",
+                "password-change@example.com",
+                "password-change-runner",
+                passwordHashService.hash("current-password"),
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(post("/account/password")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "password-change-user")
+                        .param("currentPassword", "current-password")
+                        .param("newPassword", "next-password")
+                        .param("confirmNewPassword", "next-password"))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "/?accountStatus=password_changed"));
+
+        String updatedHash = userAccountRepository.findById("password-change-user").orElseThrow().passwordHash();
+        org.junit.jupiter.api.Assertions.assertTrue(passwordHashService.matches("next-password", updatedHash));
+    }
+
+    @Test
+    void changePasswordRejectsConfirmationMismatch() throws Exception {
+        userAccountRepository.save(new InternalUserAccount(
+                "password-change-mismatch-user",
+                "password-change-mismatch@example.com",
+                "password-change-mismatch-runner",
+                passwordHashService.hash("current-password"),
+                Set.of(),
+                Instant.parse("2026-04-01T10:00:00Z")
+        ));
+
+        mockMvc.perform(post("/account/password")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .sessionAttr(AuthenticatedSession.USER_ID_ATTRIBUTE, "password-change-mismatch-user")
+                        .param("currentPassword", "current-password")
+                        .param("newPassword", "next-password")
+                        .param("confirmNewPassword", "different-password"))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "/?accountError=password_mismatch"));
+    }
 }

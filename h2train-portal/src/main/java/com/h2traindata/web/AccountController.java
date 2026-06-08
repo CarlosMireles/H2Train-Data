@@ -1,14 +1,25 @@
 package com.h2traindata.web;
 
+import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.DuplicateUserAccountException;
+import com.h2traindata.application.exception.EmailAlreadyInUseException;
+import com.h2traindata.application.exception.EmailConfirmationMismatchException;
+import com.h2traindata.application.exception.EmailUnchangedException;
 import com.h2traindata.application.exception.InvalidCredentialsException;
+import com.h2traindata.application.exception.InvalidCurrentPasswordException;
+import com.h2traindata.application.exception.PasswordConfirmationMismatchException;
+import com.h2traindata.application.exception.PasswordUnchangedException;
 import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.usecase.AuthenticateUserAccountUseCase;
+import com.h2traindata.application.usecase.ChangeUserEmailUseCase;
+import com.h2traindata.application.usecase.ChangeUserPasswordUseCase;
 import com.h2traindata.application.usecase.GetUserAccountUseCase;
 import com.h2traindata.application.usecase.RegisterUserAccountUseCase;
 import com.h2traindata.domain.InternalUserAccount;
 import com.h2traindata.web.auth.AuthenticatedUserContext;
 import com.h2traindata.web.dto.AccountResponse;
+import com.h2traindata.web.dto.ChangeEmailRequest;
+import com.h2traindata.web.dto.ChangePasswordRequest;
 import com.h2traindata.web.portal.AuthPageRenderer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -29,6 +40,8 @@ public class AccountController {
 
     private final RegisterUserAccountUseCase registerUserAccountUseCase;
     private final AuthenticateUserAccountUseCase authenticateUserAccountUseCase;
+    private final ChangeUserEmailUseCase changeUserEmailUseCase;
+    private final ChangeUserPasswordUseCase changeUserPasswordUseCase;
     private final GetUserAccountUseCase getUserAccountUseCase;
     private final ConnectionRepository connectionRepository;
     private final AuthenticatedUserContext authenticatedUserContext;
@@ -37,6 +50,8 @@ public class AccountController {
 
     public AccountController(RegisterUserAccountUseCase registerUserAccountUseCase,
                              AuthenticateUserAccountUseCase authenticateUserAccountUseCase,
+                             ChangeUserEmailUseCase changeUserEmailUseCase,
+                             ChangeUserPasswordUseCase changeUserPasswordUseCase,
                              GetUserAccountUseCase getUserAccountUseCase,
                              ConnectionRepository connectionRepository,
                              AuthenticatedUserContext authenticatedUserContext,
@@ -44,6 +59,8 @@ public class AccountController {
                              GoogleLoginAvailability googleLoginAvailability) {
         this.registerUserAccountUseCase = registerUserAccountUseCase;
         this.authenticateUserAccountUseCase = authenticateUserAccountUseCase;
+        this.changeUserEmailUseCase = changeUserEmailUseCase;
+        this.changeUserPasswordUseCase = changeUserPasswordUseCase;
         this.getUserAccountUseCase = getUserAccountUseCase;
         this.connectionRepository = connectionRepository;
         this.authenticatedUserContext = authenticatedUserContext;
@@ -79,6 +96,76 @@ public class AccountController {
             return redirect("/register?error=account_exists");
         } catch (IllegalArgumentException exception) {
             return redirect("/register?error=invalid_registration");
+        }
+    }
+
+    @PostMapping(value = "/account/email", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Void> changeEmail(@RequestParam String newEmail,
+                                            @RequestParam String confirmNewEmail,
+                                            @RequestParam String currentPassword,
+                                            HttpServletRequest request) {
+        String userId;
+        try {
+            userId = authenticatedUserContext.requireUserId(request);
+        } catch (AuthenticationRequiredException exception) {
+            return redirect("/login?error=session_required");
+        }
+
+        ChangeEmailRequest changeEmailRequest = new ChangeEmailRequest(newEmail, confirmNewEmail, currentPassword);
+        try {
+            changeUserEmailUseCase.execute(
+                    userId,
+                    changeEmailRequest.newEmail(),
+                    changeEmailRequest.confirmNewEmail(),
+                    changeEmailRequest.currentPassword()
+            );
+            return redirect("/?accountStatus=email_changed");
+        } catch (EmailConfirmationMismatchException exception) {
+            return redirect("/?accountError=email_mismatch");
+        } catch (EmailUnchangedException exception) {
+            return redirect("/?accountError=email_unchanged");
+        } catch (EmailAlreadyInUseException exception) {
+            return redirect("/?accountError=email_in_use");
+        } catch (InvalidCurrentPasswordException exception) {
+            return redirect("/?accountError=invalid_current_password");
+        } catch (IllegalArgumentException exception) {
+            return redirect("/?accountError=invalid_email");
+        }
+    }
+
+    @PostMapping(value = "/account/password", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Void> changePassword(@RequestParam String currentPassword,
+                                               @RequestParam String newPassword,
+                                               @RequestParam String confirmNewPassword,
+                                               HttpServletRequest request) {
+        String userId;
+        try {
+            userId = authenticatedUserContext.requireUserId(request);
+        } catch (AuthenticationRequiredException exception) {
+            return redirect("/login?error=session_required");
+        }
+
+        ChangePasswordRequest changePasswordRequest = new ChangePasswordRequest(
+                currentPassword,
+                newPassword,
+                confirmNewPassword
+        );
+        try {
+            changeUserPasswordUseCase.execute(
+                    userId,
+                    changePasswordRequest.currentPassword(),
+                    changePasswordRequest.newPassword(),
+                    changePasswordRequest.confirmNewPassword()
+            );
+            return redirect("/?accountStatus=password_changed");
+        } catch (PasswordConfirmationMismatchException exception) {
+            return redirect("/?accountError=password_mismatch");
+        } catch (PasswordUnchangedException exception) {
+            return redirect("/?accountError=password_unchanged");
+        } catch (InvalidCurrentPasswordException exception) {
+            return redirect("/?accountError=invalid_current_password");
+        } catch (IllegalArgumentException exception) {
+            return redirect("/?accountError=invalid_password");
         }
     }
 

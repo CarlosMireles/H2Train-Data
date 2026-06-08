@@ -64,6 +64,11 @@ class PortalControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/portal.css")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/portal.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Automatic sync")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Profile and security")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Change email address")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/account/email\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Change password")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/account/password\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 5 hours")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Every 7 days")));
     }

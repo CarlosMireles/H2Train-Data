@@ -39,6 +39,14 @@ public class AccountEventPublisher {
         publishUserAccountEvent(userAccount, "user_logged_in", authProvider);
     }
 
+    public void publishUserEmailChanged(InternalUserAccount userAccount) {
+        publishUserAccountEvent(userAccount, "user_email_changed", "password");
+    }
+
+    public void publishUserPasswordChanged(InternalUserAccount userAccount) {
+        publishUserAccountEvent(userAccount, "user_password_changed", "password");
+    }
+
     public void publishProviderAccountSynced(InternalUserAccount userAccount, ProviderConnection connection) {
         Map<String, Object> attributes = baseAccountAttributes(userAccount);
         attributes.put("linkedProviderId", connection.providerId());

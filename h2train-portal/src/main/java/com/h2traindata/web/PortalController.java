@@ -44,17 +44,23 @@ public class PortalController {
     public ResponseEntity<String> home(HttpServletRequest request,
                                        @RequestParam(value = "providerError", required = false) String providerError,
                                        @RequestParam(value = "provider", required = false) String provider,
-                                       @RequestParam(value = "athleteId", required = false) String athleteId) {
+                                       @RequestParam(value = "athleteId", required = false) String athleteId,
+                                       @RequestParam(value = "accountStatus", required = false) String accountStatus,
+                                       @RequestParam(value = "accountError", required = false) String accountError) {
         return authenticatedUserContext.currentUserId(request)
                 .map(userId -> {
                     InternalUserAccount userAccount = getUserAccountUseCase.execute(userId);
+                    PortalPageRenderer.PortalAlert alert = providerAlert(providerError, provider, athleteId);
+                    if (alert == null) {
+                        alert = accountAlert(accountStatus, accountError);
+                    }
                     String page = portalPageRenderer.render(
                             providerCatalog.registeredProviderIds(),
                             userAccount,
                             connectionRepository.findByUserId(userId).stream()
                                     .map(syncSettingsMapper::toResponse)
                                     .toList(),
-                            providerAlert(providerError, provider, athleteId)
+                            alert
                     );
                     return ResponseEntity.ok()
                             .contentType(MediaType.TEXT_HTML)
@@ -91,5 +97,53 @@ public class PortalController {
                 actionHref,
                 "Try " + displayProvider + " again"
         );
+    }
+
+    private PortalPageRenderer.PortalAlert accountAlert(String accountStatus, String accountError) {
+        if ("email_changed".equals(accountStatus)) {
+            return new PortalPageRenderer.PortalAlert(
+                    "success",
+                    "Email updated",
+                    "Your internal H2Train account email was changed.",
+                    null,
+                    null,
+                    null
+            );
+        }
+        if ("password_changed".equals(accountStatus)) {
+            return new PortalPageRenderer.PortalAlert(
+                    "success",
+                    "Password updated",
+                    "Your internal H2Train account password was changed.",
+                    "Existing sessions are not globally invalidated yet because the portal uses local HttpSession state.",
+                    null,
+                    null
+            );
+        }
+        if (accountError == null || accountError.isBlank()) {
+            return null;
+        }
+        return new PortalPageRenderer.PortalAlert(
+                "error",
+                "Account update failed",
+                accountErrorMessage(accountError),
+                null,
+                null,
+                null
+        );
+    }
+
+    private String accountErrorMessage(String accountError) {
+        return switch (accountError) {
+            case "email_mismatch" -> "The new email and confirmation email must match.";
+            case "email_unchanged" -> "The new email must be different from your current email.";
+            case "email_in_use" -> "That email is already registered by another H2Train account.";
+            case "invalid_email" -> "Enter a valid email address.";
+            case "invalid_current_password" -> "The current password is not valid.";
+            case "password_mismatch" -> "The new password and confirmation password must match.";
+            case "password_unchanged" -> "The new password must be different from your current password.";
+            case "invalid_password" -> "Use a password with at least 8 characters.";
+            default -> "The account change could not be completed.";
+        };
     }
 }

@@ -1,9 +1,11 @@
 package com.h2traindata.daemon;
 
+import com.h2traindata.application.exception.ProviderAuthorizationException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.port.out.ConnectionRepository;
 import com.h2traindata.application.usecase.SyncAllProviderEventsUseCase;
 import com.h2traindata.domain.ProviderConnection;
+import com.h2traindata.domain.SyncPreferences;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -51,11 +53,24 @@ public class ProviderSyncScheduler {
                     connection.athlete().id(),
                     exception.operation(),
                     exception.retryAfterSeconds());
-        } catch (RuntimeException exception) {
-            log.warn("Scheduled sync failed for provider={} athlete={}",
+        } catch (ProviderAuthorizationException exception) {
+            pauseAutomaticSync(connection);
+            log.warn("Scheduled sync authorization failed for provider={} athlete={} operation={}. Automatic sync was paused; reconnect the provider account.",
                     connection.providerId(),
                     connection.athlete().id(),
-                    exception);
+                    exception.operation());
+        } catch (RuntimeException exception) {
+            log.warn("Scheduled sync failed for provider={} athlete={} errorType={}",
+                    connection.providerId(),
+                    connection.athlete().id(),
+                    exception.getClass().getSimpleName());
         }
+    }
+
+    private void pauseAutomaticSync(ProviderConnection connection) {
+        connectionRepository.save(connection.withSyncPreferences(new SyncPreferences(
+                false,
+                connection.syncPreferences().interval()
+        )));
     }
 }

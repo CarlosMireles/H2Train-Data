@@ -3,8 +3,15 @@ package com.h2traindata.web;
 import com.h2traindata.application.exception.ConnectionNotFoundException;
 import com.h2traindata.application.exception.AuthenticationRequiredException;
 import com.h2traindata.application.exception.DuplicateUserAccountException;
+import com.h2traindata.application.exception.EmailAlreadyInUseException;
+import com.h2traindata.application.exception.EmailConfirmationMismatchException;
+import com.h2traindata.application.exception.EmailUnchangedException;
 import com.h2traindata.application.exception.ForbiddenAccountAccessException;
 import com.h2traindata.application.exception.InvalidCredentialsException;
+import com.h2traindata.application.exception.InvalidCurrentPasswordException;
+import com.h2traindata.application.exception.PasswordConfirmationMismatchException;
+import com.h2traindata.application.exception.PasswordUnchangedException;
+import com.h2traindata.application.exception.ProviderAuthorizationException;
 import com.h2traindata.application.exception.ProviderConnectionAlreadyLinkedException;
 import com.h2traindata.application.exception.ProviderRateLimitException;
 import com.h2traindata.application.exception.UnknownProviderException;
@@ -44,6 +51,12 @@ public class ApiExceptionHandler {
                 .body(Map.of("error", exception.getMessage()));
     }
 
+    @ExceptionHandler(EmailAlreadyInUseException.class)
+    public ResponseEntity<Map<String, String>> handleEmailAlreadyInUse(EmailAlreadyInUseException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
     @ExceptionHandler(ProviderConnectionAlreadyLinkedException.class)
     public ResponseEntity<Map<String, String>> handleProviderConnectionAlreadyLinked(
             ProviderConnectionAlreadyLinkedException exception
@@ -55,6 +68,25 @@ public class ApiExceptionHandler {
     @ExceptionHandler({AuthenticationRequiredException.class, InvalidCredentialsException.class})
     public ResponseEntity<Map<String, String>> handleAuthenticationRequired(RuntimeException exception) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCurrentPasswordException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidCurrentPassword(
+            InvalidCurrentPasswordException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler({
+            EmailConfirmationMismatchException.class,
+            EmailUnchangedException.class,
+            PasswordConfirmationMismatchException.class,
+            PasswordUnchangedException.class
+    })
+    public ResponseEntity<Map<String, String>> handleCredentialValidation(RuntimeException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", exception.getMessage()));
     }
 
@@ -78,6 +110,16 @@ public class ApiExceptionHandler {
             body.put("retryAfterSeconds", exception.retryAfterSeconds());
         }
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(body);
+    }
+
+    @ExceptionHandler(ProviderAuthorizationException.class)
+    public ResponseEntity<Map<String, Object>> handleProviderAuthorization(ProviderAuthorizationException exception) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", exception.getMessage());
+        body.put("provider", exception.providerId());
+        body.put("operation", exception.operation());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(body);
     }
 }

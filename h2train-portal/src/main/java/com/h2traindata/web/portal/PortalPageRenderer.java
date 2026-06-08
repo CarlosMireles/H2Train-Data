@@ -90,6 +90,8 @@ public class PortalPageRenderer {
                                 __PROVIDER_CARDS__
                             </div>
                         </section>
+
+                        __CREDENTIAL_SETTINGS__
                     </div>
                     <script>
                         window.H2TRAIN_BOOTSTRAP = __BOOTSTRAP__;
@@ -103,8 +105,69 @@ public class PortalPageRenderer {
                 escape(accountId)
         )
                 .replace("__PROVIDER_CARDS__", providerCards)
+                .replace("__CREDENTIAL_SETTINGS__", renderCredentialSettings(userAccount))
                 .replace("__PORTAL_ALERT__", renderAlert(alert))
                 .replace("__BOOTSTRAP__", bootstrapJson(userAccount, connections));
+    }
+
+    private String renderCredentialSettings(InternalUserAccount userAccount) {
+        if (userAccount == null) {
+            return "";
+        }
+        return """
+                        <section class="credential-settings" aria-labelledby="credential-settings-title">
+                            <div class="grid-header">
+                                <div>
+                                    <h2 id="credential-settings-title">Profile and security</h2>
+                                    <p class="section-copy">Manage only your internal H2Train account credentials. Provider accounts are not changed here.</p>
+                                </div>
+                            </div>
+                            <div class="settings-grid">
+                                <article class="settings-card">
+                                    <div class="provider-tag">Internal account</div>
+                                    <h3>Change email address</h3>
+                                    <p class="settings-current">Current email <strong>%s</strong></p>
+                                    <form class="credential-form" data-credential-form="email" method="post" action="/account/email">
+                                        <label>
+                                            <span>New email</span>
+                                            <input name="newEmail" type="email" autocomplete="email" required>
+                                        </label>
+                                        <label>
+                                            <span>Confirm new email</span>
+                                            <input name="confirmNewEmail" type="email" autocomplete="email" required>
+                                        </label>
+                                        <label>
+                                            <span>Current password</span>
+                                            <input name="currentPassword" type="password" autocomplete="current-password" required>
+                                        </label>
+                                        <p class="credential-status" data-role="credential-status" aria-live="polite"></p>
+                                        <button class="primary-action" type="submit">Save email</button>
+                                    </form>
+                                </article>
+                                <article class="settings-card">
+                                    <div class="provider-tag">Security</div>
+                                    <h3>Change password</h3>
+                                    <p class="settings-current">Use at least 8 characters and confirm the new password.</p>
+                                    <form class="credential-form" data-credential-form="password" method="post" action="/account/password">
+                                        <label>
+                                            <span>Current password</span>
+                                            <input name="currentPassword" type="password" autocomplete="current-password" required>
+                                        </label>
+                                        <label>
+                                            <span>New password</span>
+                                            <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+                                        </label>
+                                        <label>
+                                            <span>Confirm new password</span>
+                                            <input name="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required>
+                                        </label>
+                                        <p class="credential-status" data-role="credential-status" aria-live="polite"></p>
+                                        <button class="primary-action" type="submit">Save password</button>
+                                    </form>
+                                </article>
+                            </div>
+                        </section>
+                """.formatted(escape(userAccount.email()));
     }
 
     private String renderAlert(PortalAlert alert) {

@@ -97,6 +97,61 @@ function setStatus(card, tone, text) {
     status.textContent = text;
 }
 
+function setCredentialStatus(form, tone, text) {
+    const status = form.querySelector("[data-role='credential-status']");
+    if (!status) {
+        return;
+    }
+    status.dataset.tone = tone || "";
+    status.textContent = text || "";
+}
+
+function bindCredentialForm(form) {
+    form.addEventListener("input", function() {
+        setCredentialStatus(form, "", "");
+    });
+
+    form.addEventListener("submit", function(event) {
+        const formType = form.dataset.credentialForm;
+        if (!form.checkValidity()) {
+            return;
+        }
+
+        if (formType === "email") {
+            const newEmail = form.elements.newEmail.value.trim().toLowerCase();
+            const confirmNewEmail = form.elements.confirmNewEmail.value.trim().toLowerCase();
+            const currentEmail = bootstrap.account && bootstrap.account.email
+                ? bootstrap.account.email.trim().toLowerCase()
+                : "";
+            if (newEmail !== confirmNewEmail) {
+                event.preventDefault();
+                setCredentialStatus(form, "error", "The new email and confirmation email must match.");
+                return;
+            }
+            if (currentEmail && newEmail === currentEmail) {
+                event.preventDefault();
+                setCredentialStatus(form, "error", "The new email must be different from your current email.");
+            }
+            return;
+        }
+
+        if (formType === "password") {
+            const currentPassword = form.elements.currentPassword.value;
+            const newPassword = form.elements.newPassword.value;
+            const confirmNewPassword = form.elements.confirmNewPassword.value;
+            if (newPassword !== confirmNewPassword) {
+                event.preventDefault();
+                setCredentialStatus(form, "error", "The new password and confirmation password must match.");
+                return;
+            }
+            if (currentPassword === newPassword) {
+                event.preventDefault();
+                setCredentialStatus(form, "error", "The new password must be different from your current password.");
+            }
+        }
+    });
+}
+
 function renderCard(card, connection) {
     const connectLink = card.querySelector(".connect-link");
     const toggleButton = card.querySelector(".sync-toggle");
@@ -260,6 +315,8 @@ async function boot() {
         renderCard(card, connections[card.dataset.providerId] || null);
         bindCard(card);
     });
+
+    Array.from(document.querySelectorAll(".credential-form")).forEach(bindCredentialForm);
 }
 
 window.addEventListener("DOMContentLoaded", boot);
