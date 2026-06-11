@@ -1,6 +1,6 @@
 app:
   datalake:
-    root-path: ${DATALAKE_ROOT_PATH:../datalake}
+    root-path: ${DATALAKE_ROOT_PATH:./runtime/local/datalake}
   bus:
     consumer:
       type: ${APP_BUS_CONSUMER_TYPE:${APP_DATALAKE_BUS_TYPE:kafka}}

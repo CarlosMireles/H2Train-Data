@@ -38,12 +38,17 @@ build/
 ### Mac OS ###
 .DS_Store
 
-### Datalake ###
-/datalake/
+### Runtime data and generated artifacts ###
+/runtime/
+*.mv.db
+*.trace.db
+*.lock.db
+*.log
 
-### Local application database ###
-data/**
-!data/
-!data/.gitkeep
-h2train-portal/data/**
-h2train-daemon/data/**
+### Environment files and local secrets ###
+.env
+.env.*
+!.env.example
+!*.env.example
+deploy/env/*.env
+!deploy/env/.gitkeep

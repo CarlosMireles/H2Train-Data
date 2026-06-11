@@ -48,6 +48,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>com.h2traindata.dataapp.H2TrainDataAppApplication</mainClass>
+                    <workingDirectory>${project.basedir}/..</workingDirectory>
                 </configuration>
             </plugin>
         </plugins>

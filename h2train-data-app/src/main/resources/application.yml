@@ -1,6 +1,9 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 app:
   datalake:
-    root-path: ${DATALAKE_ROOT_PATH:datalake}
+    root-path: ${DATALAKE_ROOT_PATH:./runtime/local/datalake}
     longitudinal-datamart-path: ${LONGITUDINAL_DATAMART_PATH:datamarts/longitudinal}
   bus:
     consumer:

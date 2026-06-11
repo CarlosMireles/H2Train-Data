@@ -1,0 +1,141 @@
+﻿name: h2train-data
+
+services:
+  kafka:
+    image: apache/kafka:3.7.0
+    ports:
+      - "9092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    profiles: ["local", "tools"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8088:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: h2train-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  h2train-portal:
+    image: h2train-portal:local
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
+      args:
+        MODULE: h2train-portal
+    profiles: ["apps", "local", "staging", "prod"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ./env/common.env
+      - ./env/portal.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - h2train-storage:/var/lib/h2train
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/login >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  h2train-daemon:
+    image: h2train-daemon:local
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
+      args:
+        MODULE: h2train-daemon
+    profiles: ["apps", "local", "staging", "prod"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ./env/common.env
+      - ./env/daemon.env
+    volumes:
+      - h2train-storage:/var/lib/h2train
+    healthcheck:
+      test: ["CMD-SHELL", "grep -aq 'java' /proc/1/cmdline || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  h2train-datalake:
+    image: h2train-datalake:local
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
+      args:
+        MODULE: h2train-datalake
+    profiles: ["apps", "local", "staging", "prod"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ./env/common.env
+      - ./env/datalake.env
+    volumes:
+      - h2train-storage:/var/lib/h2train
+    healthcheck:
+      test: ["CMD-SHELL", "grep -aq 'java' /proc/1/cmdline || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  h2train-data-app:
+    image: h2train-data-app:local
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
+      args:
+        MODULE: h2train-data-app
+    profiles: ["apps", "local", "staging", "prod"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ./env/common.env
+      - ./env/data-api.env
+    ports:
+      - "8081:8081"
+    volumes:
+      - h2train-storage:/var/lib/h2train
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:$${SERVER_PORT:-8081}/api/v1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+volumes:
+  h2train-storage:
+  kafka-data:

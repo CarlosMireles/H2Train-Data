@@ -1,0 +1,30 @@
+﻿# Maven and Java build outputs
+target/
+**/target/
+build/
+**/build/
+
+# Local runtime data and generated artifacts
+runtime/
+*.mv.db
+*.trace.db
+*.lock.db
+deploy/env/*.env
+.env
+.env.*
+!*.env.example
+
+# IDE/editor files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# VCS and OS noise
+.git/
+.gitignore
+.DS_Store
+
+# Logs
+*.log
