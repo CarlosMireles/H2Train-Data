@@ -24,6 +24,10 @@ class GenerateDemoDataTest(unittest.TestCase):
             generate_demo_data.actual_matches(events),
         )
         self.assertEqual(12, len({event["userId"] for event in events}))
+        self.assertTrue(all(
+            not event["userId"].startswith("demo-")
+            for event in events
+        ))
         self.assertIn("HeartRate", {event["eventName"] for event in events})
         self.assertIn("Nutrition", {event["eventName"] for event in events})
         self.assertIn("BloodGlucose", {event["eventName"] for event in events})

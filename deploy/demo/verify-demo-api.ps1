@@ -48,27 +48,52 @@ Write-Host "Datamart preparado: $($metadata.subjectCount) sujetos, $($metadata.m
 Assert-Subjects `
     -Name "Calorías medias superiores a 2500" `
     -Query "/api/v1/datasets/query?metric=daily_calories&operator=gt&value=2500&aggregation=avg&from=2026-01-01&to=2026-06-01&format=json" `
-    -Expected @("demo-u001", "demo-u004", "demo-u005", "demo-u006", "demo-u009", "demo-u010")
+    -Expected @(
+        "0f3a2c71-8d4e-4b96-a125-6e7f9c2d1b40",
+        "3d91a6c8-5e27-4b40-9f13-c7a2e8d56401",
+        "4e28b7d5-91c3-46fa-a804-2d6f9b13e750",
+        "5f73c9a2-4d18-48b6-927e-e1a650d83c24",
+        "8d25a7e3-64b9-41f8-a730-3c9e5d12b684",
+        "9e81c4f6-27d3-4a59-b142-f6a0387d25c1"
+    )
 
 Assert-Subjects `
     -Name "Pasos medios superiores a 10000" `
     -Query "/api/v1/datasets/query?metric=daily_steps&operator=gt&value=10000&aggregation=avg&from=2026-01-01&to=2026-06-01&format=json" `
-    -Expected @("demo-u002", "demo-u005", "demo-u006", "demo-u008", "demo-u010")
+    -Expected @(
+        "18c7e5a4-2b91-4d63-8f20-a6e4c9b17d52",
+        "4e28b7d5-91c3-46fa-a804-2d6f9b13e750",
+        "5f73c9a2-4d18-48b6-927e-e1a650d83c24",
+        "7c46f1d9-30a8-4e72-95b3-d8f2146a0c57",
+        "9e81c4f6-27d3-4a59-b142-f6a0387d25c1"
+    )
 
 Assert-Subjects `
     -Name "Sueño medio inferior a seis horas" `
     -Query "/api/v1/datasets/query?metric=daily_sleep_duration&operator=lt&value=21600&aggregation=avg&from=2026-01-01&to=2026-06-01&format=json" `
-    -Expected @("demo-u003", "demo-u006", "demo-u008")
+    -Expected @(
+        "2b64d8f1-73a5-49ce-b812-5f90a3d6e247",
+        "5f73c9a2-4d18-48b6-927e-e1a650d83c24",
+        "7c46f1d9-30a8-4e72-95b3-d8f2146a0c57"
+    )
 
 Assert-Subjects `
     -Name "Más de cuatro actividades semanales" `
     -Query "/api/v1/datasets/query?metric=weekly_activity_count&operator=gt&value=4&aggregation=avg&from=2026-01-01&to=2026-06-01&format=json" `
-    -Expected @("demo-u004", "demo-u005", "demo-u006", "demo-u010")
+    -Expected @(
+        "3d91a6c8-5e27-4b40-9f13-c7a2e8d56401",
+        "4e28b7d5-91c3-46fa-a804-2d6f9b13e750",
+        "5f73c9a2-4d18-48b6-927e-e1a650d83c24",
+        "9e81c4f6-27d3-4a59-b142-f6a0387d25c1"
+    )
 
 Assert-Subjects `
     -Name "Más de 30 km semanales corriendo" `
     -Query "/api/v1/datasets/query?metric=weekly_workout_distance_by_sport&operator=gt&value=30000&aggregation=avg&activityType=run&from=2026-01-01&to=2026-06-01&format=json" `
-    -Expected @("demo-u005", "demo-u006")
+    -Expected @(
+        "4e28b7d5-91c3-46fa-a804-2d6f9b13e750",
+        "5f73c9a2-4d18-48b6-927e-e1a650d83c24"
+    )
 
 $exportRequest = @{
     metrics = @("daily_steps", "daily_calories", "daily_sleep_duration")
