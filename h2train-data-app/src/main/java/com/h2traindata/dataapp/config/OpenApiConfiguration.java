@@ -14,8 +14,6 @@ public class OpenApiConfiguration {
                 .info(new Info()
                         .title("H2Train Data API")
                         .version("v1")
-                        .description("API de solo lectura para datos longitudinales y datasets bajo demanda, "
-                                + "respaldada exclusivamente por las proyecciones materializadas de "
-                                + "datamarts/longitudinal."));
+                        .description("API de solo lectura para datos longitudinales y datasets bajo demanda."));
     }
 }
