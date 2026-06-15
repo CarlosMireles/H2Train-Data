@@ -65,6 +65,50 @@ class TimeSeriesBuilderServiceTest {
     }
 
     @Test
+    void transformsNutritionToDailyCaloriesIngestedAndWaterConsumed() {
+        NormalizedDatalakeEvent breakfast = event("fitbit", "BODY_COMPOSITION", "Nutrition", "nutrition-1",
+                Instant.parse("2026-04-10T08:00:00Z"),
+                node -> {
+                    node.put("calories", 650);
+                    node.put("water", 500);
+                });
+        NormalizedDatalakeEvent dinner = event("fitbit", "BODY_COMPOSITION", "Nutrition", "nutrition-2",
+                Instant.parse("2026-04-10T20:00:00Z"),
+                node -> {
+                    node.put("calories", 1200);
+                    node.put("water", 1000);
+                });
+
+        TimeSeriesDataset dataset = service.buildDataset(List.of(breakfast, dinner));
+
+        TimeSeriesPoint calories = onlyPoint(dataset, "daily_calories_ingested");
+        TimeSeriesPoint water = onlyPoint(dataset, "daily_water_consumed");
+        assertPointValue("1850", calories);
+        assertPointValue("1500", water);
+        assertEquals("kcal", calories.unit());
+        assertEquals("ml", water.unit());
+        assertEquals(AggregationType.SUM, calories.aggregationType());
+        assertEquals(AggregationType.SUM, water.aggregationType());
+    }
+
+    @Test
+    void transformsBloodGlucoseToLatestDailyValue() {
+        NormalizedDatalakeEvent morning = event("fitbit", "HEALTH", "BloodGlucose", "glucose-1",
+                Instant.parse("2026-04-10T08:00:00Z"),
+                node -> node.put("averageGlucose", 92));
+        NormalizedDatalakeEvent evening = event("fitbit", "HEALTH", "BloodGlucose", "glucose-2",
+                Instant.parse("2026-04-10T20:00:00Z"),
+                node -> node.put("averageGlucose", 105));
+
+        TimeSeriesDataset dataset = service.buildDataset(List.of(morning, evening));
+
+        TimeSeriesPoint glucose = onlyPoint(dataset, "daily_blood_glucose");
+        assertPointValue("105", glucose);
+        assertEquals("mg/dL", glucose.unit());
+        assertEquals(AggregationType.LAST, glucose.aggregationType());
+    }
+
+    @Test
     void transformsWorkoutToDailyAggregates() {
         NormalizedDatalakeEvent run = workout("workout-run", "run", "2026-04-08T10:00:00Z", 1800, 5000, 450);
         NormalizedDatalakeEvent walk = workout("workout-walk", "walk", "2026-04-08T18:00:00Z", 1200, 1000, 100);

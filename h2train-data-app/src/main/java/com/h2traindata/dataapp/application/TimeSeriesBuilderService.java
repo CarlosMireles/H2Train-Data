@@ -145,8 +145,17 @@ public class TimeSeriesBuilderService {
             addSleep(event, zone, sums);
             return;
         }
+        if (isEvent(event, "HEALTH", "BloodGlucose")) {
+            addLastMetric(event, zone, lasts, TimeSeriesMetric.DAILY_BLOOD_GLUCOSE,
+                    "averageGlucose", "mg/dL");
+            return;
+        }
         if (isEvent(event, "BODY_COMPOSITION", "BodyComposition")) {
             addBodyComposition(event, zone, lasts);
+            return;
+        }
+        if (isEvent(event, "BODY_COMPOSITION", "Nutrition")) {
+            addNutrition(event, zone, sums);
             return;
         }
         if (isEvent(event, "ACTIVITY", "Workout")) {
@@ -196,6 +205,39 @@ public class TimeSeriesBuilderService {
                 null
         );
         addSum(sums, key, duration, false);
+    }
+
+    private void addNutrition(NormalizedDatalakeEvent event,
+                              ZoneId zone,
+                              Map<AggregateKey, MutableAggregate> sums) {
+        addDailyMetricSum(event, zone, sums, TimeSeriesMetric.DAILY_CALORIES_INGESTED,
+                "calories", "kcal");
+        addDailyMetricSum(event, zone, sums, TimeSeriesMetric.DAILY_WATER_CONSUMED,
+                "water", "ml");
+    }
+
+    private void addDailyMetricSum(NormalizedDatalakeEvent event,
+                                   ZoneId zone,
+                                   Map<AggregateKey, MutableAggregate> sums,
+                                   TimeSeriesMetric metric,
+                                   String fieldName,
+                                   String unit) {
+        BigDecimal value = numberField(event.event(), fieldName).orElse(null);
+        if (value == null) {
+            return;
+        }
+        PeriodRange period = dailyPeriod(event.eventTimestamp(), zone);
+        AggregateKey key = key(
+                event,
+                metric.metricName(),
+                DAILY_PERIOD,
+                period,
+                unit,
+                AggregationType.SUM,
+                null,
+                null
+        );
+        addSum(sums, key, value, false);
     }
 
     private void addBodyComposition(NormalizedDatalakeEvent event,

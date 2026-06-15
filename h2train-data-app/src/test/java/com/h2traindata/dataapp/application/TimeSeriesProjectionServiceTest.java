@@ -122,6 +122,48 @@ class TimeSeriesProjectionServiceTest {
     }
 
     @Test
+    void nutritionAndBloodGlucoseUpdateLongitudinalMetricsIncrementally() {
+        NormalizedDatalakeEvent nutrition = event(
+                "fitbit",
+                "BODY_COMPOSITION",
+                "Nutrition",
+                "nutrition-1",
+                Instant.parse("2026-06-10T08:00:00Z"),
+                node -> {
+                    node.put("calories", 2100);
+                    node.put("water", 1800);
+                });
+        NormalizedDatalakeEvent glucose = event(
+                "fitbit",
+                "HEALTH",
+                "BloodGlucose",
+                "glucose-1",
+                Instant.parse("2026-06-10T09:00:00Z"),
+                node -> node.put("averageGlucose", 98));
+
+        projectionService.process(nutrition);
+        projectionService.process(nutrition);
+        projectionService.process(glucose);
+
+        TimeSeriesPoint calories = onlyPoint(
+                queryService.timeSeries(USER_ID, "daily_calories_ingested", null, null),
+                "daily_calories_ingested");
+        TimeSeriesPoint water = onlyPoint(
+                queryService.timeSeries(USER_ID, "daily_water_consumed", null, null),
+                "daily_water_consumed");
+        TimeSeriesPoint bloodGlucose = onlyPoint(
+                queryService.timeSeries(USER_ID, "daily_blood_glucose", null, null),
+                "daily_blood_glucose");
+
+        assertEquals(0, calories.value().compareTo(java.math.BigDecimal.valueOf(2100)));
+        assertEquals(0, water.value().compareTo(java.math.BigDecimal.valueOf(1800)));
+        assertEquals(0, bloodGlucose.value().compareTo(java.math.BigDecimal.valueOf(98)));
+        assertEquals("kcal", calories.unit());
+        assertEquals("ml", water.unit());
+        assertEquals("mg/dL", bloodGlucose.unit());
+    }
+
+    @Test
     void workoutEventMaintainsActivityReadModelIncrementally() {
         projectionService.process(workout("workout-run-1", "run", "2026-06-10T08:00:00Z", 1800, 5000, 400));
 
