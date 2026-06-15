@@ -44,6 +44,7 @@ Reglas principales:
 - [Configuración](docs/configuration.md)
 - [API](docs/api.md)
 - [API de datasets personalizados](docs/datasets-api.md)
+- [Demostración aislada de la API](docs/demo-api.md)
 - [Datalake](docs/datalake.md)
 - [Datamarts](docs/datamarts.md)
 - [Despliegue](docs/deployment.md)

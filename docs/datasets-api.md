@@ -1,5 +1,9 @@
 # API de datasets personalizados
 
+Existe un entorno Docker con datos sintéticos deterministas para probar estos
+endpoints sin utilizar cuentas ni eventos reales. Consultar la
+[guía de demostración de la API](demo-api.md).
+
 La API de datasets permite seleccionar sujetos mediante condiciones analíticas y
 exportar sus métricas longitudinales. Todas las consultas se resuelven
 exclusivamente desde:

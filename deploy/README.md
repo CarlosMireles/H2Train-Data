@@ -54,7 +54,7 @@ Ventajas:
 ### 4. Perfiles de despliegue
 
 Decisión: utilizar los perfiles de Docker Compose `local`, `staging`, `prod`,
-`apps` y `tools`.
+`apps`, `tools` y `demo`.
 
 Ventajas:
 
@@ -62,6 +62,7 @@ Ventajas:
 - `staging` y `prod` pueden ejecutar los servicios sin Kafka UI de forma
   predeterminada.
 - `apps` permite iniciar directamente todos los contenedores de H2Train.
+- `demo` inicia una API aislada con eventos sintéticos y un volumen exclusivo.
 - El mismo archivo de Compose puede evolucionar sin duplicar definiciones.
 
 Los ejemplos de perfiles se encuentran en `deploy/profiles/`.
@@ -267,6 +268,17 @@ Iniciar todos los servicios sin herramientas locales:
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile apps up --build
 ```
+
+Iniciar la demostración aislada de la API de datasets:
+
+```powershell
+docker compose -f deploy/docker-compose.yml --profile demo up --build -d h2train-demo-api
+```
+
+La demostración publica la API en `http://localhost:8082`, utiliza el volumen
+`h2train-data-demo-storage` y no comparte cuentas, eventos ni datamarts con el
+despliegue habitual. La guía completa se encuentra en
+[`docs/demo-api.md`](../docs/demo-api.md).
 
 ## Política de Git
 
