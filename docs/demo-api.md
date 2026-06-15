@@ -34,14 +34,15 @@ eventos y la API utiliza el reconstructor existente.
 
 El generador utiliza una semilla fija y crea:
 
-- 12 sujetos, desde `demo-u001` hasta `demo-u012`.
+- 12 sujetos con identificadores UUID seudónimos, similares a los
+  identificadores internos utilizados en un entorno real.
 - Datos entre el 1 de enero y el 1 de junio de 2026.
 - Actividad diaria, pasos, distancia y calorías.
 - Sueño, nutrición, agua, glucosa y composición corporal.
 - Entrenamientos de carrera, ciclismo, fuerza y paseo.
 - Minutos y calorías en las zonas `out_of_range`, `fat_burn`, `cardio` y
   `peak`.
-- Ausencias controladas de observaciones, especialmente para `demo-u011`.
+- Ausencias controladas de observaciones en uno de los perfiles.
 
 El manifiesto generado se almacena dentro del volumen en:
 
@@ -91,7 +92,12 @@ curl.exe "http://localhost:8082/api/v1/datasets/query?metric=daily_calories&oper
 Sujetos esperados:
 
 ```text
-demo-u001, demo-u004, demo-u005, demo-u006, demo-u009, demo-u010
+0f3a2c71-8d4e-4b96-a125-6e7f9c2d1b40
+3d91a6c8-5e27-4b40-9f13-c7a2e8d56401
+4e28b7d5-91c3-46fa-a804-2d6f9b13e750
+5f73c9a2-4d18-48b6-927e-e1a650d83c24
+8d25a7e3-64b9-41f8-a730-3c9e5d12b684
+9e81c4f6-27d3-4a59-b142-f6a0387d25c1
 ```
 
 ### Más de 10.000 pasos diarios de media
@@ -103,7 +109,11 @@ curl.exe "http://localhost:8082/api/v1/datasets/query?metric=daily_steps&operato
 Sujetos esperados:
 
 ```text
-demo-u002, demo-u005, demo-u006, demo-u008, demo-u010
+18c7e5a4-2b91-4d63-8f20-a6e4c9b17d52
+4e28b7d5-91c3-46fa-a804-2d6f9b13e750
+5f73c9a2-4d18-48b6-927e-e1a650d83c24
+7c46f1d9-30a8-4e72-95b3-d8f2146a0c57
+9e81c4f6-27d3-4a59-b142-f6a0387d25c1
 ```
 
 ### Menos de seis horas de sueño medio
@@ -118,7 +128,9 @@ curl.exe "http://localhost:8082/api/v1/datasets/query?metric=daily_sleep_duratio
 Sujetos esperados:
 
 ```text
-demo-u003, demo-u006, demo-u008
+2b64d8f1-73a5-49ce-b812-5f90a3d6e247
+5f73c9a2-4d18-48b6-927e-e1a650d83c24
+7c46f1d9-30a8-4e72-95b3-d8f2146a0c57
 ```
 
 ### Más de cuatro actividades semanales
@@ -130,7 +142,10 @@ curl.exe "http://localhost:8082/api/v1/datasets/query?metric=weekly_activity_cou
 Sujetos esperados:
 
 ```text
-demo-u004, demo-u005, demo-u006, demo-u010
+3d91a6c8-5e27-4b40-9f13-c7a2e8d56401
+4e28b7d5-91c3-46fa-a804-2d6f9b13e750
+5f73c9a2-4d18-48b6-927e-e1a650d83c24
+9e81c4f6-27d3-4a59-b142-f6a0387d25c1
 ```
 
 ### Más de 30 km semanales corriendo
@@ -145,7 +160,8 @@ curl.exe "http://localhost:8082/api/v1/datasets/query?metric=weekly_workout_dist
 Sujetos esperados:
 
 ```text
-demo-u005, demo-u006
+4e28b7d5-91c3-46fa-a804-2d6f9b13e750
+5f73c9a2-4d18-48b6-927e-e1a650d83c24
 ```
 
 ## Exportación CSV
