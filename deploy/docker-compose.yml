@@ -136,6 +136,55 @@ services:
       retries: 5
       start_period: 45s
 
+  h2train-demo-data:
+    image: h2train-demo-data:local
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.demo-data
+    profiles: ["demo"]
+    environment:
+      DEMO_DATALAKE_ROOT: /var/lib/h2train/datalake
+      DEMO_START_DATE: "2026-01-01"
+      DEMO_END_DATE: "2026-06-01"
+      DEMO_RANDOM_SEED: "20260615"
+    volumes:
+      - h2train-demo-storage:/var/lib/h2train
+    restart: "no"
+
+  h2train-demo-api:
+    image: h2train-data-app:demo
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.app
+      args:
+        MODULE: h2train-data-app
+    profiles: ["demo"]
+    depends_on:
+      h2train-demo-data:
+        condition: service_completed_successfully
+    environment:
+      DATALAKE_ROOT_PATH: /var/lib/h2train/datalake
+      LONGITUDINAL_DATAMART_PATH: datamarts/longitudinal
+      SERVER_PORT: "8081"
+      APP_DATA_APP_BUS_TYPE: none
+      TIMESERIES_REBUILD_ON_STARTUP: "true"
+    ports:
+      - "8082:8081"
+    volumes:
+      - h2train-demo-storage:/var/lib/h2train
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS http://localhost:8081/api/v1/dataset/metadata
+          | grep -q '"lastRecord":"2026-06-01T23:59:00Z"'
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
 volumes:
   h2train-storage:
+  h2train-demo-storage:
+    name: h2train-data-demo-storage
   kafka-data:

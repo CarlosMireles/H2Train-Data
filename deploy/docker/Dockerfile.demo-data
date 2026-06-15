@@ -1,0 +1,6 @@
+FROM python:3.12-alpine
+
+WORKDIR /app
+COPY deploy/demo/generate_demo_data.py /app/generate_demo_data.py
+
+ENTRYPOINT ["python", "/app/generate_demo_data.py"]
