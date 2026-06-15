@@ -1,12 +1,16 @@
 # Datalake
 
-The event datalake stores normalized provider events and remains the source of truth.
+El datalake almacena los eventos normalizados de los proveedores y permanece
+como fuente de verdad.
 
-## Purpose
+## Propósito
 
-The datalake keeps append-oriented event records produced by provider synchronization. It should not be optimized for direct UI/API queries; query-oriented access belongs in datamarts.
+El datalake conserva registros orientados a anexado producidos por la
+sincronización de proveedores. No debe optimizarse para consultas directas de
+la interfaz o de la API; el acceso orientado a consulta corresponde a los
+datamarts.
 
-## Expected structure
+## Estructura esperada
 
 ```text
 runtime/local/datalake/
@@ -14,7 +18,7 @@ runtime/local/datalake/
   datamarts/
 ```
 
-Deployment storage:
+Almacenamiento de despliegue:
 
 ```text
 /var/lib/h2train/datalake/
@@ -22,9 +26,9 @@ Deployment storage:
   datamarts/
 ```
 
-## Events
+## Eventos
 
-Relevant normalized event names include:
+Los nombres de eventos normalizados relevantes incluyen:
 
 - `Workout`
 - `ActivitySummary`
@@ -33,11 +37,18 @@ Relevant normalized event names include:
 - `CaloriesBurned`
 - `HeartRate`
 - `BodyComposition`
+- `Nutrition`
 - `Sleep`
+- `BloodGlucose`
+- `Electrocardiogram`
+- `AnomalyDetected`
 
-## Operational rules
+## Reglas operativas
 
-- Do not delete or rewrite historical events during normal ingestion.
-- Do not use high-frequency provider streams unless explicitly implemented in a future phase.
-- Keep generated event files out of Git.
-- If older generated `dataset/` folders exist, keep them as legacy artifacts and migrate or rebuild into `datamarts/` deliberately.
+- No eliminar ni reescribir eventos históricos durante la ingesta normal.
+- No utilizar flujos de alta frecuencia de los proveedores salvo que se
+  implementen explícitamente en una fase futura.
+- Mantener fuera de Git los archivos de eventos generados.
+- Si existen carpetas antiguas `dataset/`, conservarlas como artefactos
+  heredados y migrarlas o reconstruirlas deliberadamente dentro de
+  `datamarts/`.

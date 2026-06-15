@@ -1,28 +1,32 @@
-# Modules
+# Módulos
 
-The repository is a Maven multi-module project targeting Java 17 and Spring Boot 3.3.4.
+El repositorio es un proyecto Maven multimódulo basado en Java 17 y Spring Boot
+3.3.4.
 
-## Root modules
+## Módulos raíz
 
-| Module | Responsibility |
+| Módulo | Responsabilidad |
 | --- | --- |
-| `h2train-bus` | Shared event envelope, bus abstractions, Kafka publisher support and privacy metadata. |
-| `h2train-provider-sync` | Provider integration domain, OAuth connectors, sync use cases and provider persistence ports. |
-| `h2train-daemon` | Background scheduler that synchronizes due provider connections and publishes normalized events. |
-| `h2train-datalake` | Kafka consumer that writes normalized events to the event datalake. |
-| `h2train-data-app` | Read-only REST API over longitudinal datamarts and time-series projections. |
-| `h2train-portal` | Spring Boot MVC portal, internal accounts, provider configuration, OAuth flows and rendered HTML UI. |
+| `h2train-bus` | Envoltorio compartido de eventos, abstracciones del bus, publicación en Kafka y metadatos de privacidad. |
+| `h2train-provider-sync` | Dominio de integración, conectores OAuth, casos de uso de sincronización y puertos de persistencia de proveedores. |
+| `h2train-daemon` | Planificador en segundo plano que sincroniza las conexiones pendientes y publica eventos normalizados. |
+| `h2train-datalake` | Consumidor Kafka que escribe eventos normalizados en el datalake. |
+| `h2train-data-app` | API REST de solo lectura sobre datamarts longitudinales y proyecciones temporales. |
+| `h2train-portal` | Portal Spring Boot MVC, cuentas internas, configuración de proveedores, flujos OAuth e interfaz HTML. |
 
-## Non-code directories
+## Directorios sin código
 
-| Directory | Responsibility |
+| Directorio | Responsabilidad |
 | --- | --- |
-| `deploy/` | Docker Compose scaffold, Dockerfile, environment examples and deployment notes. |
-| `docs/` | Project documentation split by topic. |
-| `runtime/local/database/` | Local generated H2 database files, ignored by Git. |
-| `runtime/local/datalake/` | Local generated event and datamart files, ignored by Git. |
-| `runtime/local/backups/` | Local migration backups, ignored by Git. |
+| `deploy/` | Docker Compose, Dockerfile, ejemplos de entorno y notas de despliegue. |
+| `docs/` | Documentación del proyecto separada por temas. |
+| `runtime/local/database/` | Archivos locales generados de H2, ignorados por Git. |
+| `runtime/local/datalake/` | Eventos y datamarts locales generados, ignorados por Git. |
+| `runtime/local/backups/` | Copias de seguridad locales de migraciones, ignoradas por Git. |
 
-## Package organization
+## Organización de paquetes
 
-The current Java package layout already separates application services, ports, infrastructure, configuration, web controllers and domain models. Large package moves are intentionally avoided because they do not improve runtime behavior and increase regression risk.
+La estructura actual de paquetes Java ya separa servicios de aplicación,
+puertos, infraestructura, configuración, controladores web y modelos de
+dominio. Se evitan movimientos masivos de paquetes porque no mejoran el
+comportamiento de ejecución y aumentan el riesgo de regresiones.

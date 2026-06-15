@@ -1,113 +1,121 @@
 # H2Train-Data
 
-H2Train-Data is a modular Spring Boot platform for ingesting sports and health provider data, storing normalized events, deriving longitudinal datamarts and exposing read-only data APIs.
+H2Train-Data es una plataforma modular basada en Spring Boot para ingerir datos
+de proveedores deportivos y de salud, almacenar eventos normalizados, construir
+datamarts longitudinales y exponer API de datos de solo lectura.
 
-## Architecture
+## Arquitectura
 
 ```text
 Portal web
-    -> Portal database
-    -> Sync daemon
-    -> Kafka bus
-    -> Event datalake
-    -> Longitudinal datamarts
-    -> Read-only data API
+    -> Base de datos del portal
+    -> Daemon de sincronización
+    -> Bus Kafka
+    -> Datalake de eventos
+    -> Datamarts longitudinales
+    -> API de datos de solo lectura
 ```
 
-Key rules:
+Reglas principales:
 
-- `events/` is the source of truth.
-- `datamarts/longitudinal/` is a materialized read model.
-- Kafka decouples producers and consumers.
-- The API reads datamarts only, not raw event files.
-- Runtime data is ignored by Git.
+- `events/` es la fuente de verdad.
+- `datamarts/longitudinal/` es un modelo de lectura materializado.
+- Kafka desacopla productores y consumidores.
+- La API solo consulta datamarts, nunca los archivos de eventos directamente.
+- Git ignora los datos generados durante la ejecución.
 
-## Modules
+## Módulos
 
-| Module | Purpose |
+| Módulo | Responsabilidad |
 | --- | --- |
-| `h2train-bus` | Shared event bus abstractions and Kafka support. |
-| `h2train-provider-sync` | Provider OAuth, provider clients and synchronization use cases. |
-| `h2train-daemon` | Background synchronization scheduler. |
-| `h2train-datalake` | Kafka consumer that writes normalized events to the datalake. |
-| `h2train-data-app` | REST API over longitudinal datamarts. |
-| `h2train-portal` | Spring Boot MVC portal for accounts, providers and settings. |
-| `deploy` | Docker Compose scaffold and environment templates. |
-| `docs` | Extended project documentation. |
+| `h2train-bus` | Abstracciones compartidas del bus de eventos y soporte para Kafka. |
+| `h2train-provider-sync` | OAuth, clientes de proveedores y casos de uso de sincronización. |
+| `h2train-daemon` | Planificador de sincronización en segundo plano. |
+| `h2train-datalake` | Consumidor Kafka que escribe eventos normalizados en el datalake. |
+| `h2train-data-app` | API REST sobre los datamarts longitudinales. |
+| `h2train-portal` | Portal Spring Boot MVC para cuentas, proveedores y configuración. |
+| `deploy` | Definición Docker Compose y plantillas de entorno. |
+| `docs` | Documentación ampliada del proyecto. |
 
-## Documentation
+## Documentación
 
-- [Architecture](docs/architecture.md)
-- [Modules](docs/modules.md)
-- [Configuration](docs/configuration.md)
+- [Arquitectura](docs/architecture.md)
+- [Módulos](docs/modules.md)
+- [Configuración](docs/configuration.md)
 - [API](docs/api.md)
+- [API de datasets personalizados](docs/datasets-api.md)
 - [Datalake](docs/datalake.md)
 - [Datamarts](docs/datamarts.md)
-- [Deployment](docs/deployment.md)
-- [Development](docs/development.md)
+- [Despliegue](docs/deployment.md)
+- [Desarrollo](docs/development.md)
 
-## Local development
+Toda la documentación explicativa se mantiene en español. Los identificadores
+técnicos, nombres de métricas, eventos, parámetros y variables conservan su
+forma original porque pertenecen a los contratos de la plataforma.
 
-Requirements:
+## Desarrollo local
+
+Requisitos:
 
 - Java 17
 - Maven
-- Kafka when running Kafka-backed ingestion/projections
-- Provider credentials for real Strava/Fitbit/Google flows
+- Kafka para ejecutar la ingesta y las proyecciones respaldadas por Kafka
+- Credenciales de proveedores para probar flujos reales de Strava, Fitbit o Google
 
-Build all modules:
+Compilar todos los módulos:
 
 ```powershell
 mvn clean compile
 ```
 
-Run full verification:
+Ejecutar la verificación completa:
 
 ```powershell
 mvn clean verify
 ```
 
-Run the portal locally:
+Ejecutar el portal localmente:
 
 ```powershell
 . .\scripts\load-local-env.ps1 portal
 mvn -pl h2train-portal -am spring-boot:run
 ```
 
-Run the data API locally:
+Ejecutar la API de datos localmente:
 
 ```powershell
 . .\scripts\load-local-env.ps1 data-api
 mvn -pl h2train-data-app -am spring-boot:run
 ```
 
-See [Development](docs/development.md) for the complete IntelliJ terminal workflow.
+Consultar [Desarrollo](docs/development.md) para ver el flujo completo desde
+terminales de IntelliJ.
 
-## Docker scaffold
+## Docker
 
-Docker deployment files live under `deploy/`.
+Los archivos de despliegue Docker se encuentran en `deploy/`.
 
-Start the local profile:
+Iniciar el perfil local:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local up -d --build
 ```
 
-Rebuild containers after code changes:
+Reconstruir los contenedores después de cambios en el código:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local up -d --build --force-recreate
 ```
 
-The shared Docker storage path is:
+La ruta de almacenamiento compartido de Docker es:
 
 ```text
 /var/lib/h2train
 ```
 
-## Runtime data
+## Datos de ejecución
 
-Generated local data must not be committed:
+Los datos locales generados no deben incluirse en Git:
 
 ```text
 runtime/
@@ -121,11 +129,11 @@ runtime/
     logs/
 ```
 
-For Docker, the same concepts are stored inside `/var/lib/h2train/`.
+En Docker, estos mismos datos se almacenan bajo `/var/lib/h2train/`.
 
-## Environment files
+## Archivos de entorno
 
-Real environment files are ignored:
+Los archivos de entorno reales están ignorados:
 
 ```text
 deploy/env/*.env
@@ -133,10 +141,11 @@ deploy/env/*.env
 .env.*
 ```
 
-Versioned examples are stored in:
+Los ejemplos versionados se encuentran en:
 
 ```text
 deploy/env.example/*.env.example
 ```
 
-Do not commit OAuth secrets, SMTP passwords, refresh tokens, H2 database files or generated datalake content.
+No se deben incluir en Git secretos OAuth, contraseñas SMTP, tokens de
+renovación, archivos de base de datos H2 ni contenido generado del datalake.

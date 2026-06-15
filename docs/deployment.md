@@ -1,6 +1,6 @@
-# Deployment
+# Despliegue
 
-Docker support is prepared under:
+El soporte Docker se encuentra en:
 
 ```text
 deploy/
@@ -12,9 +12,9 @@ deploy/
   README.md
 ```
 
-## Compose services
+## Servicios de Compose
 
-The planned services are:
+Los servicios definidos son:
 
 - `h2train-portal`
 - `h2train-daemon`
@@ -23,15 +23,15 @@ The planned services are:
 - `kafka`
 - `kafka-ui`
 
-## Shared storage
+## Almacenamiento compartido
 
-All application containers mount the named Docker volume at:
+Todos los contenedores de la aplicación montan el volumen Docker en:
 
 ```text
 /var/lib/h2train
 ```
 
-Expected structure:
+Estructura esperada:
 
 ```text
 /var/lib/h2train/
@@ -43,30 +43,34 @@ Expected structure:
   logs/
 ```
 
-## Environment files
+## Archivos de entorno
 
-Real environment files live in `deploy/env/` and are ignored by Git. Sanitized templates live in `deploy/env.example/` and are versioned.
+Los archivos de entorno reales se encuentran en `deploy/env/` y Git los
+ignora. Las plantillas anonimizadas se encuentran en `deploy/env.example/` y
+sí están versionadas.
 
-## Local Docker commands
+## Comandos Docker locales
 
-From the repository root:
+Desde la raíz del repositorio:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local up -d --build
 ```
 
-Rebuild after code changes:
+Reconstruir después de cambios en el código:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local up -d --build --force-recreate
 ```
 
-Stop services:
+Detener los servicios:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local down
 ```
 
-## Notes
+## Notas
 
-`deploy/docker-compose.yml` is the only Compose definition. Use `-f deploy/docker-compose.yml` when running commands from the repository root.
+`deploy/docker-compose.yml` es la única definición de Compose. Al ejecutar
+comandos desde la raíz del repositorio se debe indicar
+`-f deploy/docker-compose.yml`.

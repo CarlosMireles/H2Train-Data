@@ -23,6 +23,8 @@ import com.h2traindata.dataapp.web.ApiV1Dtos.TimeSeriesPointResponse;
 import com.h2traindata.dataapp.web.ApiV1Dtos.TimeSeriesResponse;
 import com.h2traindata.dataapp.web.ApiV1Dtos.UserResponse;
 import com.h2traindata.dataapp.web.ApiV1Dtos.WeeklySummaryResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +41,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(path = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(
+        name = "Datos longitudinales",
+        description = "Consultas de solo lectura sobre los datamarts longitudinales materializados"
+)
 public class ApiV1Controller {
 
     private final TimeSeriesQueryService queryService;
@@ -48,11 +54,19 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}")
+    @Operation(
+            summary = "Consultar un sujeto",
+            description = "Devuelve los metadatos longitudinales disponibles para el sujeto indicado."
+    )
     public UserResponse user(@PathVariable String userId) {
         return toUser(queryService.user(userId));
     }
 
     @GetMapping("/users/{userId}/providers")
+    @Operation(
+            summary = "Listar los proveedores de un sujeto",
+            description = "Devuelve los proveedores representados en el datamart longitudinal del sujeto."
+    )
     public List<ProviderResponse> providers(@PathVariable String userId) {
         return queryService.providers(userId).stream()
                 .map(this::toProvider)
@@ -60,11 +74,19 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/metrics")
+    @Operation(
+            summary = "Listar las métricas de un sujeto",
+            description = "Devuelve los identificadores de las series temporales disponibles para el sujeto."
+    )
     public List<String> metrics(@PathVariable String userId) {
         return queryService.metrics(userId);
     }
 
     @GetMapping("/users/{userId}/timeseries")
+    @Operation(
+            summary = "Consultar una serie temporal",
+            description = "Devuelve los puntos de una métrica longitudinal, con filtros opcionales de fecha."
+    )
     public TimeSeriesResponse timeSeries(@PathVariable String userId,
                                          @RequestParam String metric,
                                          @RequestParam(required = false)
@@ -86,6 +108,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/timeseries/batch")
+    @Operation(
+            summary = "Consultar varias series temporales",
+            description = "Devuelve en una sola respuesta las métricas indicadas, separadas por comas."
+    )
     public TimeSeriesBatchResponse timeSeriesBatch(@PathVariable String userId,
                                                    @RequestParam String metrics,
                                                    @RequestParam(required = false)
@@ -113,6 +139,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/summary/daily")
+    @Operation(
+            summary = "Obtener el resumen diario",
+            description = "Devuelve las principales métricas agregadas del sujeto para una fecha concreta."
+    )
     public DailySummaryResponse dailySummary(@PathVariable String userId,
                                              @RequestParam
                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -130,6 +160,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/summary/weekly")
+    @Operation(
+            summary = "Obtener el resumen semanal",
+            description = "Devuelve las métricas de actividad agregadas en el intervalo solicitado."
+    )
     public WeeklySummaryResponse weeklySummary(@PathVariable String userId,
                                                @RequestParam
                                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -152,6 +186,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/activities")
+    @Operation(
+            summary = "Listar actividades",
+            description = "Devuelve las actividades del sujeto de forma paginada y permite filtrar por fecha y tipo."
+    )
     public PageResponse<ActivityResponse> activities(@PathVariable String userId,
                                                      @RequestParam(required = false)
                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -171,11 +209,19 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/activities/{activityId}")
+    @Operation(
+            summary = "Consultar una actividad",
+            description = "Devuelve el detalle de una actividad concreta del sujeto."
+    )
     public ActivityResponse activity(@PathVariable String userId, @PathVariable String activityId) {
         return toActivity(queryService.activity(userId, activityId));
     }
 
     @GetMapping("/users/{userId}/data-coverage")
+    @Operation(
+            summary = "Consultar la cobertura de datos",
+            description = "Devuelve por métrica el periodo cubierto, los puntos disponibles y los días sin observaciones."
+    )
     public Map<String, DataCoverageResponse> dataCoverage(@PathVariable String userId) {
         Map<String, DataCoverageResponse> response = new LinkedHashMap<>();
         queryService.dataCoverage(userId).forEach((metric, coverage) -> response.put(metric,
@@ -192,6 +238,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/sync/status")
+    @Operation(
+            summary = "Consultar el estado de sincronización",
+            description = "Devuelve el estado materializado de sincronización de cada proveedor del sujeto."
+    )
     public List<ProviderResponse> syncStatus(@PathVariable String userId) {
         return queryService.syncStatus(userId).stream()
                 .map(this::toProvider)
@@ -199,6 +249,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/sync/history")
+    @Operation(
+            summary = "Consultar el historial de sincronización",
+            description = "Devuelve el historial de sincronizaciones disponible en el modelo de lectura."
+    )
     public List<SyncHistoryResponse> syncHistory(@PathVariable String userId) {
         return queryService.syncHistory(userId).stream()
                 .map(this::toSyncHistory)
@@ -206,6 +260,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/users/{userId}/dataset/export")
+    @Operation(
+            summary = "Exportar el dataset completo de un sujeto",
+            description = "Devuelve las series temporales longitudinales disponibles para un único sujeto."
+    )
     public DatasetExportResponse datasetExport(@PathVariable String userId) {
         SubjectInfo subject = queryService.user(userId);
         Map<String, List<TimeSeriesPoint>> series = queryService.allTimeSeries(userId);
@@ -225,6 +283,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/dataset/metadata")
+    @Operation(
+            summary = "Consultar los metadatos del dataset",
+            description = "Devuelve el número de sujetos, métricas, puntos y el periodo global disponible."
+    )
     public DatasetMetadataResponse datasetMetadata() {
         DatasetMetadata metadata = queryService.datasetMetadata();
         return new DatasetMetadataResponse(
@@ -238,6 +300,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/dataset/subjects")
+    @Operation(
+            summary = "Listar los sujetos disponibles",
+            description = "Devuelve los sujetos presentes en los datamarts longitudinales."
+    )
     public List<UserResponse> datasetSubjects() {
         return queryService.subjects().stream()
                 .map(this::toUser)
@@ -245,6 +311,10 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/health")
+    @Operation(
+            summary = "Comprobar el estado del servicio",
+            description = "Indica si la API de datos está disponible."
+    )
     public HealthResponse health() {
         return new HealthResponse("UP", "h2train-data-app");
     }

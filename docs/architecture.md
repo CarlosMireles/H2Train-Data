@@ -1,48 +1,57 @@
-# Architecture
+# Arquitectura
 
-H2Train-Data is organized as a modular data ingestion platform for sports and health providers.
+H2Train-Data está organizado como una plataforma modular de ingesta de datos
+procedentes de proveedores deportivos y de salud.
 
-## Data flow
+## Flujo de datos
 
 ```text
 Portal web
-    -> Portal database
-    -> Sync daemon
-    -> Kafka bus
-    -> Event datalake
-    -> Longitudinal datamarts
-    -> Read-only data API
+    -> Base de datos del portal
+    -> Daemon de sincronización
+    -> Bus Kafka
+    -> Datalake de eventos
+    -> Datamarts longitudinales
+    -> API de datos de solo lectura
 ```
 
-## Architectural rules
+## Reglas arquitectónicas
 
-- `events/` is the source of truth for provider data already normalized as events.
-- `datamarts/longitudinal/` is a materialized read model derived from events.
-- Kafka distributes events between independent consumers.
-- The datalake writer persists immutable event records.
-- The time-series projection updates longitudinal datamarts incrementally.
-- The data API reads only from `datamarts/longitudinal/` and must not read directly from `events/`.
-- The rebuilder is an operational recovery tool that can regenerate datamarts from events, but it is not the normal runtime path.
+- `events/` es la fuente de verdad para los datos de proveedores ya
+  normalizados como eventos.
+- `datamarts/longitudinal/` es un modelo de lectura materializado derivado de
+  los eventos.
+- Kafka distribuye eventos entre consumidores independientes.
+- El escritor del datalake persiste registros de eventos inmutables.
+- La proyección de series temporales actualiza los datamarts longitudinales de
+  forma incremental.
+- La API de datos solo consulta `datamarts/longitudinal/` y no debe acceder
+  directamente a `events/`.
+- El reconstructor es una herramienta operativa de recuperación que puede
+  regenerar los datamarts desde los eventos, pero no forma parte del flujo
+  normal de ejecución.
 
-## CQRS separation
+## Separación CQRS
 
-Write model:
+Modelo de escritura:
 
 ```text
 runtime/local/datalake/events/
 ```
 
-Read model:
+Modelo de lectura:
 
 ```text
 runtime/local/datalake/datamarts/longitudinal/
 ```
 
-This separation keeps provider ingestion append-oriented and makes API queries fast and stable for dashboards, research exports and longitudinal analysis.
+Esta separación mantiene la ingesta orientada a anexar eventos y permite que
+las consultas de la API sean rápidas y estables para paneles, exportaciones de
+investigación y análisis longitudinales.
 
-## Runtime storage
+## Almacenamiento de ejecución
 
-Local development uses a single generated-data root:
+El desarrollo local utiliza una única raíz para los datos generados:
 
 ```text
 runtime/local/
@@ -55,7 +64,7 @@ runtime/local/
   logs/
 ```
 
-Containerized deployment uses the shared storage root:
+El despliegue en contenedores utiliza la raíz de almacenamiento compartido:
 
 ```text
 /var/lib/h2train/
@@ -67,4 +76,4 @@ Containerized deployment uses the shared storage root:
   logs/
 ```
 
-Generated runtime data is intentionally ignored by Git.
+Git ignora deliberadamente los datos generados durante la ejecución.

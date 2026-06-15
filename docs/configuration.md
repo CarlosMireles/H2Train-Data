@@ -1,44 +1,48 @@
-# Configuration
+# Configuración
 
-Configuration is environment-driven with safe defaults for local development where possible.
+La configuración se controla mediante variables de entorno y utiliza valores
+predeterminados seguros para desarrollo local cuando es posible.
 
-## Shared variables
+## Variables compartidas
 
-| Variable | Purpose | Typical Docker value |
+| Variable | Propósito | Valor habitual en Docker |
 | --- | --- | --- |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address. | `kafka:9092` |
-| `KAFKA_TOPIC` | Main normalized event topic. | `h2train.events.v1` |
-| `H2TRAIN_STORAGE_ROOT` | Shared storage root for deployments. | `/var/lib/h2train` |
-| `DATALAKE_ROOT_PATH` | Datalake root path. | `/var/lib/h2train/datalake` |
+| `KAFKA_BOOTSTRAP_SERVERS` | Dirección del broker de Kafka. | `kafka:9092` |
+| `KAFKA_TOPIC` | Tema principal de eventos normalizados. | `h2train.events.v1` |
+| `H2TRAIN_STORAGE_ROOT` | Raíz de almacenamiento compartido. | `/var/lib/h2train` |
+| `DATALAKE_ROOT_PATH` | Ruta raíz del datalake. | `/var/lib/h2train/datalake` |
 
-Local defaults resolve from the repository root:
+Los valores locales predeterminados se resuelven desde la raíz del repositorio:
 
 ```text
 H2TRAIN_DB_URL=jdbc:h2:file:./runtime/local/database/h2train;...
 DATALAKE_ROOT_PATH=./runtime/local/datalake
 ```
 
-## Portal variables
+## Variables del portal
 
-| Variable | Purpose |
+| Variable | Propósito |
 | --- | --- |
-| `APP_PERSISTENCE_TYPE` | Persistence implementation, normally `jdbc`. |
-| `APP_BUS_TYPE` | Event bus publisher type, for example `kafka` or `logging`. |
-| `H2TRAIN_DB_URL` | JDBC URL for the portal and daemon database. |
-| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | Strava OAuth configuration. |
-| `FITBIT_ENABLED`, `FITBIT_CLIENT_ID`, `FITBIT_CLIENT_SECRET`, `FITBIT_REDIRECT_URI` | Fitbit OAuth configuration. |
-| `GOOGLE_LOGIN_ENABLED`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Google login configuration. |
-| `PASSWORD_RESET_EMAIL_ENABLED` | Enables SMTP password reset delivery. |
-| `PASSWORD_RESET_EMAIL_FROM` | Sender address for reset emails. |
-| `SPRING_MAIL_*` | SMTP settings used by Spring Mail. |
+| `APP_PERSISTENCE_TYPE` | Implementación de persistencia, normalmente `jdbc`. |
+| `APP_BUS_TYPE` | Publicador del bus de eventos, por ejemplo `kafka` o `logging`. |
+| `H2TRAIN_DB_URL` | URL JDBC de la base de datos del portal y del daemon. |
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | Configuración OAuth de Strava. |
+| `FITBIT_ENABLED`, `FITBIT_CLIENT_ID`, `FITBIT_CLIENT_SECRET`, `FITBIT_REDIRECT_URI` | Configuración OAuth de Fitbit. |
+| `GOOGLE_LOGIN_ENABLED`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Configuración de acceso con Google. |
+| `PASSWORD_RESET_EMAIL_ENABLED` | Activa el envío SMTP para recuperar contraseñas. |
+| `PASSWORD_RESET_EMAIL_FROM` | Dirección remitente de los correos de recuperación. |
+| `SPRING_MAIL_*` | Configuración SMTP utilizada por Spring Mail. |
 
-## Daemon variables
+## Variables del daemon
 
-The daemon needs database access, provider OAuth settings, sync tuning and event bus settings. It should not contain portal-only UI variables.
+El daemon necesita acceso a la base de datos, configuración OAuth de los
+proveedores, parámetros de sincronización y configuración del bus de eventos.
+No debe contener variables exclusivas de la interfaz del portal.
 
-## Datalake variables
+## Variables del datalake
 
-The datalake writer needs only the datalake root and Kafka consumer settings:
+El escritor del datalake solo necesita la ruta raíz y la configuración del
+consumidor Kafka:
 
 - `DATALAKE_ROOT_PATH`
 - `APP_BUS_CONSUMER_TYPE`
@@ -47,24 +51,27 @@ The datalake writer needs only the datalake root and Kafka consumer settings:
 - `DATALAKE_KAFKA_GROUP_ID`
 - `DATALAKE_KAFKA_CLIENT_ID`
 
-## Data API variables
+## Variables de la API de datos
 
-The data API needs only read-model storage and its runtime port:
+La API de datos solo necesita el almacenamiento del modelo de lectura y su
+puerto de ejecución:
 
 - `DATALAKE_ROOT_PATH`
 - `LONGITUDINAL_DATAMART_PATH`
 - `SERVER_PORT`
-- projection consumer variables when the time-series projection runs in this module
+- variables del consumidor de proyección cuando la proyección temporal se
+  ejecuta en este módulo
 
-## Secret policy
+## Política de secretos
 
-Real secrets must not be committed. Use:
+Los secretos reales no deben incluirse en Git. Utilizar:
 
 ```text
 deploy/env/*.env
 ```
 
-for local/deployment values and keep only sanitized examples in:
+para los valores locales o de despliegue y conservar únicamente ejemplos
+anonimizados en:
 
 ```text
 deploy/env.example/*.env.example

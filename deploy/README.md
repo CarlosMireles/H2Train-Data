@@ -1,70 +1,86 @@
-﻿# H2Train-Data Docker deployment scaffold
+# Despliegue Docker de H2Train-Data
 
-This directory prepares H2Train-Data for progressive Docker Compose deployment. It does not replace local Maven/Spring Boot development and it does not change business logic.
+Este directorio prepara H2Train-Data para un despliegue progresivo con Docker
+Compose. No sustituye el desarrollo local con Maven y Spring Boot ni modifica
+la lógica de negocio.
 
-## Current choices and advantages
+## Decisiones actuales y ventajas
 
 ### 1. Dockerfiles
 
-Choice: one reusable multi-stage Dockerfile at `deploy/docker/Dockerfile.app`, parameterized with `MODULE`.
+Decisión: utilizar un único Dockerfile multietapa reutilizable en
+`deploy/docker/Dockerfile.app`, parametrizado mediante `MODULE`.
 
-Advantages:
+Ventajas:
 
-- Avoids duplicating one Dockerfile per Java module.
-- Keeps all services aligned with the same Java runtime and build strategy.
-- Builds only the selected Maven module plus its required dependencies using `mvn -pl <module> -am`.
-- Produces runtime images without Maven or source code.
-- Runs as a non-root `h2train` user.
+- Evita duplicar un Dockerfile por cada módulo Java.
+- Mantiene todos los servicios alineados con la misma versión de Java y la
+  misma estrategia de construcción.
+- Compila únicamente el módulo Maven seleccionado y sus dependencias mediante
+  `mvn -pl <module> -am`.
+- Produce imágenes de ejecución sin Maven ni código fuente.
+- Ejecuta los procesos con el usuario `h2train`, sin privilegios de root.
 
-### 2. Persistence
+### 2. Persistencia
 
-Choice: keep H2 file-based persistence for the first Docker iteration.
+Decisión: mantener inicialmente la persistencia H2 basada en archivos.
 
-Advantages:
+Ventajas:
 
-- Preserves current application behavior.
-- Avoids adding PostgreSQL driver/dependencies before the application is ready for that migration.
-- Keeps the database inside the shared Docker volume under `/var/lib/h2train/database`.
-- Minimizes risk while containerizing infrastructure first.
+- Conserva el comportamiento actual de la aplicación.
+- Evita añadir el controlador y las dependencias de PostgreSQL antes de que la
+  aplicación esté preparada para esa migración.
+- Mantiene la base de datos dentro del volumen compartido, bajo
+  `/var/lib/h2train/database`.
+- Reduce el riesgo mientras se conteneriza primero la infraestructura.
 
-Future PostgreSQL migration remains possible, but should be a separate task because it changes database runtime assumptions.
+La migración futura a PostgreSQL sigue siendo posible, pero debe abordarse como
+una tarea independiente porque modifica las condiciones de ejecución de la
+base de datos.
 
-### 3. Healthchecks
+### 3. Comprobaciones de estado
 
-Choice: add Docker healthchecks in Compose.
+Decisión: añadir comprobaciones de estado de Docker en Compose.
 
-Advantages:
+Ventajas:
 
-- Kafka readiness is checked before dependent services start.
-- Web services are checked through HTTP endpoints.
-- Non-web services are checked by verifying the Java process is alive.
-- No application business logic is changed.
+- Se comprueba que Kafka esté preparado antes de iniciar los servicios
+  dependientes.
+- Los servicios web se comprueban mediante endpoints HTTP.
+- Los servicios no web se comprueban verificando que el proceso Java siga
+  activo.
+- No se modifica la lógica de negocio de la aplicación.
 
-### 4. Deployment profiles
+### 4. Perfiles de despliegue
 
-Choice: use Docker Compose profiles: `local`, `staging`, `prod`, `apps`, and `tools`.
+Decisión: utilizar los perfiles de Docker Compose `local`, `staging`, `prod`,
+`apps` y `tools`.
 
-Advantages:
+Ventajas:
 
-- `local` can include developer tools like Kafka UI.
-- `staging` and `prod` can run application services without Kafka UI by default.
-- `apps` remains a direct way to start all H2Train app containers.
-- The same compose file can evolve without duplicating service definitions.
+- `local` puede incluir herramientas de desarrollo como Kafka UI.
+- `staging` y `prod` pueden ejecutar los servicios sin Kafka UI de forma
+  predeterminada.
+- `apps` permite iniciar directamente todos los contenedores de H2Train.
+- El mismo archivo de Compose puede evolucionar sin duplicar definiciones.
 
-Profile examples are stored in `deploy/profiles/`.
+Los ejemplos de perfiles se encuentran en `deploy/profiles/`.
 
-### 5. Logs
+### 5. Registros
 
-Choice: keep Docker stdout/stderr and also configure Spring Boot file logs under `/var/lib/h2train/logs/<service>`.
+Decisión: conservar la salida estándar de Docker y configurar también los
+registros de Spring Boot bajo `/var/lib/h2train/logs/<service>`.
 
-Advantages:
+Ventajas:
 
-- Docker logs still work with `docker compose logs`.
-- Persistent service logs are available in the shared `h2train-storage` volume.
-- Each service gets an isolated log directory.
-- No code changes are required because Spring Boot maps `LOGGING_FILE_PATH` automatically.
+- Los registros de Docker siguen disponibles mediante `docker compose logs`.
+- Los registros persistentes están disponibles en el volumen compartido
+  `h2train-storage`.
+- Cada servicio dispone de un directorio independiente.
+- No son necesarios cambios de código porque Spring Boot interpreta
+  `LOGGING_FILE_PATH` automáticamente.
 
-## Layout
+## Estructura
 
 ```text
 deploy/
@@ -89,9 +105,9 @@ deploy/
     └── prod.env.example
 ```
 
-## Runtime storage
+## Almacenamiento de ejecución
 
-All application containers share this volume mount:
+Todos los contenedores de la aplicación comparten este volumen:
 
 ```text
 /var/lib/h2train/
@@ -103,19 +119,23 @@ All application containers share this volume mount:
 └── logs/
 ```
 
-The Compose volume is named `h2train-storage` and is mounted at `/var/lib/h2train`.
+El volumen de Compose se llama `h2train-storage` y se monta en
+`/var/lib/h2train`.
 
-## Environment files
+## Archivos de entorno
 
-`deploy/env/` contains local runtime values for Docker Compose. These files may contain secrets and must not be committed.
+`deploy/env/` contiene los valores locales utilizados por Docker Compose. Estos
+archivos pueden contener secretos y no deben incluirse en Git.
 
-`deploy/env.example/` contains safe examples and should remain versioned. Copy from `env.example` to `env` when preparing a new environment.
+`deploy/env.example/` contiene ejemplos seguros que deben permanecer
+versionados. Para preparar un entorno nuevo, se copian las plantillas desde
+`env.example` a `env`.
 
 ### common.env
 
-Used by all H2Train services.
+Utilizado por todos los servicios de H2Train.
 
-Contains shared infrastructure values:
+Contiene los valores compartidos de infraestructura:
 
 ```text
 KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -129,9 +149,9 @@ H2TRAIN_DB_PASSWORD=
 
 ### portal.env
 
-Used by `h2train-portal`.
+Utilizado por `h2train-portal`.
 
-Complete manually:
+Completar manualmente:
 
 ```text
 STRAVA_CLIENT_ID
@@ -146,7 +166,7 @@ GOOGLE_CLIENT_SECRET
 GOOGLE_REDIRECT_URI
 ```
 
-Optional email delivery for password recovery:
+Envío opcional de correo para recuperar contraseñas:
 
 ```text
 PASSWORD_RESET_EMAIL_ENABLED
@@ -162,9 +182,9 @@ SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE
 
 ### daemon.env
 
-Used by `h2train-daemon`.
+Utilizado por `h2train-daemon`.
 
-Contains synchronization and provider-access configuration:
+Contiene la configuración de sincronización y acceso a proveedores:
 
 ```text
 APP_PERSISTENCE_TYPE
@@ -189,9 +209,9 @@ FITBIT_INCREMENTAL_ACTIVITY_FETCH_LIMIT
 
 ### datalake.env
 
-Used by `h2train-datalake`.
+Utilizado por `h2train-datalake`.
 
-Contains the writer target and Kafka consumer identity:
+Contiene el destino de escritura y la identidad del consumidor Kafka:
 
 ```text
 DATALAKE_ROOT_PATH
@@ -204,9 +224,10 @@ DATALAKE_KAFKA_AUTO_OFFSET_RESET
 
 ### data-api.env
 
-Used by `h2train-data-app`.
+Utilizado por `h2train-data-app`.
 
-Contains the datamart reader path, API port, and time-series projection consumer identity:
+Contiene la ruta de lectura del datamart, el puerto de la API y la identidad
+del consumidor de proyecciones temporales:
 
 ```text
 DATALAKE_ROOT_PATH
@@ -220,42 +241,42 @@ TIMESERIES_KAFKA_AUTO_OFFSET_RESET
 TIMESERIES_REBUILD_ON_STARTUP
 ```
 
-## Commands
+## Comandos
 
-Validate Compose configuration:
+Validar la configuración de Compose:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml config
 docker compose -f deploy/docker-compose.yml --profile apps config
 ```
 
-Start only Kafka and Kafka UI for local debugging:
+Iniciar únicamente Kafka y Kafka UI para depuración local:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile tools up kafka kafka-ui
 ```
 
-Build and start all application services for local Docker execution:
+Construir e iniciar todos los servicios para una ejecución Docker local:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile local up --build
 ```
 
-Start all app services without local tools:
+Iniciar todos los servicios sin herramientas locales:
 
 ```powershell
 docker compose -f deploy/docker-compose.yml --profile apps up --build
 ```
 
-## Git policy
+## Política de Git
 
-Do not commit:
+No incluir:
 
 ```text
 deploy/env/*.env
 ```
 
-Commit:
+Mantener versionado:
 
 ```text
 .dockerignore
@@ -266,10 +287,14 @@ deploy/profiles/*.env.example
 deploy/README.md
 ```
 
-## Remaining next steps
+## Próximos pasos pendientes
 
-1. Run a real Docker build once provider secrets are configured locally.
-2. Add production-grade secret handling, for example Docker secrets or an external vault.
-3. Decide and implement PostgreSQL support if H2 is no longer enough for shared/prod deployments.
-4. Add reverse proxy/TLS configuration if exposing services outside localhost.
-5. Add CI jobs to build and publish the Docker images.
+1. Ejecutar una construcción Docker real cuando los secretos de proveedores
+   estén configurados localmente.
+2. Añadir gestión de secretos adecuada para producción, por ejemplo Docker
+   secrets o un almacén externo.
+3. Decidir e implementar soporte para PostgreSQL si H2 deja de ser suficiente
+   para despliegues compartidos o productivos.
+4. Añadir proxy inverso y TLS si los servicios se exponen fuera de localhost.
+5. Añadir tareas de integración continua para construir y publicar las
+   imágenes Docker.
