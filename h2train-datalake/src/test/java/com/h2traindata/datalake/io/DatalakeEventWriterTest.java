@@ -17,7 +17,7 @@ class DatalakeEventWriterTest {
     private Path tempDir;
 
     @Test
-    void writesEventUsingProviderAndEventTypeDirectories() throws Exception {
+    void writesEventUsingEventTypeDirectoryAndDayFile() throws Exception {
         DatalakeProperties properties = new DatalakeProperties();
         properties.setRootPath(tempDir);
         DatalakePathResolver pathResolver = new DatalakePathResolver(properties);
@@ -35,7 +35,7 @@ class DatalakeEventWriterTest {
         ));
 
         Path expectedPath = tempDir.resolve(
-                "events/strava/ACTIVITY/events.jsonl"
+                "events/ACTIVITY/2026-05-14.jsonl"
         );
         assertEquals(expectedPath, target);
         assertTrue(Files.exists(expectedPath));

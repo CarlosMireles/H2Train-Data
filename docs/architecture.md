@@ -36,7 +36,7 @@ Portal web
 Modelo de escritura:
 
 ```text
-runtime/local/datalake/events/
+runtime/local/datalake/events/{eventType}/{YYYY-MM-DD}.jsonl
 ```
 
 Modelo de lectura:

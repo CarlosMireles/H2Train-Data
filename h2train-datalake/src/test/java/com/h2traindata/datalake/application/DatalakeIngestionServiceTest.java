@@ -64,7 +64,7 @@ class DatalakeIngestionServiceTest {
         ));
 
         Path expectedPath = tempDir.resolve(
-                "events/strava/ACTIVITY/events.jsonl"
+                "events/ACTIVITY/2026-05-14.jsonl"
         );
         assertTrue(result.successful());
         assertEquals(expectedPath, result.file());

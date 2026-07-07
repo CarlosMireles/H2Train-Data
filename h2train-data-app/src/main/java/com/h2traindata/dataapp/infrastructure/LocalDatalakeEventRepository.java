@@ -35,7 +35,7 @@ public class LocalDatalakeEventRepository implements DatalakeEventRepository {
         try (Stream<Path> files = Files.walk(eventsRoot)) {
             List<Path> eventFiles = files
                     .filter(Files::isRegularFile)
-                    .filter(path -> "events.jsonl".equals(path.getFileName().toString()))
+                    .filter(path -> path.getFileName().toString().endsWith(".jsonl"))
                     .sorted(Comparator.comparing(Path::toString))
                     .toList();
             for (Path file : eventFiles) {

@@ -15,6 +15,8 @@ datamarts.
 ```text
 runtime/local/datalake/
   events/
+    {eventType}/
+      {YYYY-MM-DD}.jsonl
   datamarts/
 ```
 
@@ -23,10 +25,21 @@ Almacenamiento de despliegue:
 ```text
 /var/lib/h2train/datalake/
   events/
+    {eventType}/
+      {YYYY-MM-DD}.jsonl
   datamarts/
 ```
 
 ## Eventos
+
+Los eventos validos se organizan por tipo de evento y dia UTC del evento:
+
+```text
+events/{eventType}/{YYYY-MM-DD}.jsonl
+```
+
+Cada archivo diario contiene una linea JSON por evento y se escribe en
+modo anexado.
 
 Los nombres de eventos normalizados relevantes incluyen:
 
